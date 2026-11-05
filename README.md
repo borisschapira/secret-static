@@ -24,3 +24,7 @@ Les tests unitaires utilisent le runner intégré à Node.js :
 ```sh
 pnpm test
 ```
+
+## Licence
+
+Ce projet est distribué sous la licence WTFPL v2. Voir [LICENSE](./LICENSE).
