@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <meta name="theme-color" content="#183d32">
+    <title>Secret — Organiser un tirage</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="app.js"></script>
+  </head>
+  <body data-page="organizer">
+    <a class="skip-link" href="#main">Aller au contenu</a>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Secret, accueil">
+        <span class="brand-mark" aria-hidden="true">✳</span>
+        <span>Secret</span>
+      </a>
+      <span class="header-note">Organisez vos échanges de cadeaux, simplement.</span>
+    </header>
+
+    <main id="main" class="page-shell">
+      <section class="intro">
+        <p class="eyebrow"><span aria-hidden="true">✦</span> Un tirage bien organisé</p>
+        <h1>Le plaisir d’offrir,<br><em>en toute surprise.</em></h1>
+        <p class="intro-copy">Créez votre tirage en quelques instants. Chaque participant recevra un lien privé pour découvrir à qui offrir un cadeau.</p>
+        <div class="privacy-note">
+          <span class="privacy-icon" aria-hidden="true">⌑</span>
+          <p><strong>Vos données restent privées.</strong> L’état du formulaire est chiffré dans l’URL et dans le stockage local de ce navigateur. Vous pouvez conserver le lien pour reprendre l’administration ailleurs ; aucun nom en clair n’est enregistré par l’application.</p>
+        </div>
+      </section>
+
+      <section class="organizer-card" aria-labelledby="setup-heading">
+        <div class="card-heading">
+          <div class="step-number" aria-hidden="true">01</div>
+          <div>
+            <p class="eyebrow">À vous de jouer</p>
+            <h2 id="setup-heading">Préparez votre tirage</h2>
+          </div>
+        </div>
+
+        <div class="event-field">
+          <label for="event-name">Nom de l’événement <span class="required-mark">(obligatoire)</span></label>
+          <input id="event-name" name="event-name" type="text" maxlength="100" placeholder="Ex. Échange en famille" autocomplete="off" required aria-describedby="event-help">
+          <p id="event-help" class="field-help">Ce nom apparaîtra sur le lien de chaque participant.</p>
+          <p id="event-error" class="field-error" aria-live="polite"></p>
+        </div>
+
+        <div class="participants-heading">
+          <div>
+            <h3>Les participants <span id="participant-count" class="count-pill">0</span></h3>
+            <p class="field-help">Ajoutez au moins 3 personnes pour lancer le tirage.</p>
+          </div>
+        </div>
+        <ul id="participant-list" class="participant-list" aria-label="Liste des participants"></ul>
+        <p id="empty-list" class="empty-state">Votre liste attend ses premiers participants…</p>
+
+        <form id="participant-form" class="add-form" novalidate>
+          <label for="participant-name">Nom du participant</label>
+          <div class="add-row">
+            <input id="participant-name" name="participant-name" type="text" maxlength="100" placeholder="Ex. Camille" autocomplete="off" required aria-describedby="participant-error">
+            <button class="button button-secondary" type="submit"><span aria-hidden="true">+</span> Ajouter</button>
+          </div>
+          <p id="participant-error" class="field-error" aria-live="polite"></p>
+        </form>
+
+        <div class="card-footer">
+          <p class="field-help"><span aria-hidden="true">↗</span> Vous pouvez fixer une attribution pour certaines personnes ; les autres seront tirées au sort.</p>
+          <button id="generate-button" class="button button-primary" type="button" disabled>
+            Générer les liens privés <span aria-hidden="true">→</span>
+          </button>
+          <p id="organizer-status" class="status-message" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section id="results" class="results-card" aria-labelledby="results-heading" hidden>
+        <div class="card-heading">
+          <div class="step-number step-number--light" aria-hidden="true">02</div>
+          <div>
+            <p class="eyebrow">C’est prêt !</p>
+            <h2 id="results-heading">Les liens sont générés</h2>
+          </div>
+        </div>
+        <p class="results-intro">Copiez et envoyez à chacun son lien personnel. Gardez le secret : chaque lien ne révèle qu’une seule attribution.</p>
+        <div class="admin-link-card">
+          <label for="admin-link">Lien pour reprendre l’administration</label>
+          <p id="admin-link-help" class="field-help">Enregistrez ce lien pour retrouver votre tirage et les liens des participants plus tard.</p>
+          <div class="admin-link-row">
+            <input id="admin-link" name="admin-link" type="url" readonly aria-describedby="admin-link-help">
+            <button id="copy-admin-link" class="copy-button" type="button">Copier le lien d’administration</button>
+          </div>
+          <p id="admin-link-status" class="status-message" role="status" aria-live="polite"></p>
+        </div>
+        <ul id="result-list" class="result-list" aria-label="Liens personnels des participants"></ul>
+      </section>
+
+      <footer class="page-footer">
+        <span>Fait avec soin pour vos échanges <span aria-hidden="true">✳</span></span>
+        <span>Simple, privé, toute l’année.</span>
+      </footer>
+    </main>
+
+    <dialog id="change-dialog" class="confirm-dialog" aria-labelledby="dialog-heading" aria-describedby="dialog-description">
+      <div class="dialog-icon" aria-hidden="true">!</div>
+      <p class="eyebrow">Avant de continuer</p>
+      <h2 id="dialog-heading">Modifier le tirage ?</h2>
+      <p id="dialog-description">Attention, modifier la liste effacera le tirage et les liens précédemment générés. Voulez-vous continuer ?</p>
+      <div class="dialog-actions">
+        <button id="cancel-change" class="button button-secondary" type="button">Annuler</button>
+        <button id="confirm-change" class="button button-primary" type="button">Confirmer</button>
+      </div>
+    </dialog>
+
+    <dialog id="restore-dialog" class="confirm-dialog" aria-labelledby="restore-heading" aria-describedby="restore-description">
+      <div class="dialog-icon" aria-hidden="true">↻</div>
+      <p class="eyebrow">Reprendre votre tirage</p>
+      <h2 id="restore-heading">Un événement précédent a été trouvé</h2>
+      <p id="restore-description">Un précédent événement a été trouvé dans le stockage local de ce navigateur. Voulez-vous reprendre votre préparation e tirage ?</p>
+      <div class="dialog-actions">
+        <button id="start-fresh" class="button button-secondary" type="button" autofocus>Commencer sans</button>
+        <button id="restore-saved-state" class="button button-primary" type="button">Rétablir votr évènement</button>
+      </div>
+    </dialog>
+  </body>
+</html>
