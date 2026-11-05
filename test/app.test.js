@@ -11,7 +11,7 @@ import {
   isExampleState,
   renameDraw,
   validateParticipantName,
-} from "../dist/app.js";
+} from "../public/app.js";
 
 const participants = [
   { id: "1", name: "Camille", targetId: "" },

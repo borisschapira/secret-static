@@ -103,6 +103,11 @@ select:focus-visible {
   font-size: 1rem;
 }
 
+.brand-mark svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
 .header-note {
   color: var(--muted); /* gris sauge */
 }
@@ -125,6 +130,13 @@ select:focus-visible {
   font-weight: 750;
   letter-spacing: 0.15em;
   text-transform: uppercase;
+}
+
+.intro-icon {
+  width: 1.1em;
+  height: 1.1em;
+  margin-inline-end: 0.2em;
+  vertical-align: -0.2em;
 }
 
 .intro h1,
@@ -173,7 +185,11 @@ select:focus-visible {
   border-radius: 50%;
   color: var(--forest); /* vert forêt */
   background: #e8eee4; /* vert sauge très clair */
-  font-size: 1.1rem;
+}
+
+.privacy-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 .privacy-note p {
@@ -328,10 +344,15 @@ select:hover {
   list-style: none;
 }
 
+.participant-list {
+  container-name: participant-list;
+  container-type: inline-size;
+}
+
 .participant-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) auto;
-  align-items: center;
+  align-items: end;
   gap: 0.55rem;
   padding: 0.6rem;
   border: 1px solid #eeeee7; /* gris chaud très clair */
@@ -356,12 +377,14 @@ select:hover {
 .participant-row input,
 .participant-row select {
   min-width: 0;
-  min-height: 42px;
+  height: 44px;
+  min-height: 44px;
   border-color: transparent; /* transparent */
   background-color: #f8f8f3; /* ivoire */
 }
 
 .participant-row input {
+  padding-block: 0;
   font-weight: 650;
 }
 
@@ -370,24 +393,23 @@ select:hover {
   padding: 0 2rem 0 0.7rem;
 }
 
-.icon-button {
-  display: inline-grid;
-  width: 2.5rem;
-  height: 2.5rem;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid transparent; /* transparent */
-  border-radius: 0.55rem;
-  color: #8d6960; /* brun rosé */
-  background: transparent; /* transparent */
-  cursor: pointer;
-  font-size: 1.15rem;
-  transition: background-color 150ms ease, color 150ms ease;
+.participant-row .participant-remove {
+  height: 44px;
+  min-height: 44px;
+  padding-block: 0;
+  padding-inline: 0.75rem;
+  border-color: #efd9d5;
+  color: #8f3c35;
+  background: #fff8f6;
 }
 
-.icon-button:hover {
-  color: #8f3c35; /* rouge brique foncé */
-  background: #fbefec; /* rose très pâle */
+.participant-remove:hover {
+  background: #fbefec;
+}
+
+.participant-remove svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .empty-state {
@@ -426,6 +448,12 @@ select:hover {
   cursor: pointer;
   font-weight: 700;
   transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.button svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
 }
 
 .button:not(:disabled):hover {
@@ -472,7 +500,16 @@ select:hover {
 }
 
 .card-footer .field-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   margin: 0;
+}
+
+.card-footer .field-help svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
 }
 
 .card-footer-actions {
@@ -608,6 +645,12 @@ select:hover {
   font-weight: 700;
 }
 
+.copy-button svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
 .copy-button:hover {
   color: var(--forest); /* vert forêt */
   background: #f8e9ca; /* crème dorée */
@@ -651,6 +694,11 @@ select:hover {
   background: #f5ead6; /* beige clair */
   font-family: Didot, "Bodoni MT", "Noto Serif Display", "URW Palladio L", P052, Sylfaen, serif;
   font-size: 1.25rem;
+}
+
+.dialog-icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .confirm-dialog h2 {
@@ -698,7 +746,11 @@ select:hover {
   top: 1rem;
   right: 1.5rem;
   color: #e8dfca; /* beige sable */
-  font-size: 2rem;
+}
+
+.secret-decoration svg {
+  width: 2rem;
+  height: 2rem;
 }
 
 .secret-card .eyebrow {
@@ -723,6 +775,12 @@ select:hover {
   flex: 1;
   background: #e9e5d9; /* gris beige clair */
   content: "";
+}
+
+.secret-divider svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
 }
 
 .secret-greeting {
@@ -775,8 +833,21 @@ select:hover {
   color: var(--muted); /* gris sauge */
 }
 
-.secret-footer span {
+.secret-footer-message > span {
+  display: inline-flex;
   color: #ab8753; /* brun doré */
+}
+
+.secret-footer svg {
+  width: 0.85em;
+  height: 0.85em;
+  vertical-align: -0.05em;
+}
+
+.secret-footer-version {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
 }
 
 @media (max-width: 600px) {
@@ -786,7 +857,8 @@ select:hover {
   }
 
   .header-note {
-    max-width: 130px;
+    max-width: min(240px, calc(100vw - 120px));
+    font-size: 0.875rem;
     text-align: right;
   }
 
@@ -824,11 +896,6 @@ select:hover {
   .participant-row input,
   .participant-row select {
     padding-inline: 0.55rem;
-  }
-
-  .icon-button {
-    width: 2.2rem;
-    height: 2.2rem;
   }
 
   .add-row {
@@ -884,6 +951,18 @@ select:hover {
 
   .dialog-actions .button {
     flex: 1;
+  }
+}
+
+@container participant-list (max-width: 38rem) {
+  .participant-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .participant-remove {
+    justify-self: start;
   }
 }
 

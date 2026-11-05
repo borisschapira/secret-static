@@ -67,7 +67,7 @@ export function isExampleState(state) {
   ));
 }
 
-// Mélange une copie de la liste : les données de départ restent intactes.
+// Mélange une copie de la liste : les données de départ restent intactes.
 function shuffle(items) {
   const shuffled = [...items];
 
@@ -430,6 +430,7 @@ async function initializeOrganizer() {
   const regenerateDescription = document.querySelector("#regenerate-description");
   const cancelRegenerateButton = document.querySelector("#cancel-regenerate");
   const confirmRegenerateButton = document.querySelector("#confirm-regenerate");
+  const confirmRegenerateLabel = document.querySelector("#confirm-regenerate-label");
   const restoreSavedStateButton = document.querySelector("#restore-saved-state");
   const startFreshButton = document.querySelector("#start-fresh");
   const initialStateToken = new URLSearchParams(window.location.search).get(ADMIN_STATE_PARAM);
@@ -660,12 +661,14 @@ async function initializeOrganizer() {
       targetField.append(targetLabel, targetSelect);
 
       const removeButton = document.createElement("button");
-      removeButton.className = "icon-button";
+      removeButton.className = "button button-secondary participant-remove";
       removeButton.type = "button";
       removeButton.dataset.action = "remove";
       removeButton.setAttribute("aria-label", `Supprimer ${participant.name}`);
-      removeButton.title = `Supprimer ${participant.name}`;
-      removeButton.textContent = "×";
+      const removeIcon = createIconReference("delete", "lucide lucide-delete preview-icon");
+      const removeLabel = document.createElement("span");
+      removeLabel.textContent = "Supprimer";
+      removeButton.append(removeIcon, removeLabel);
 
       item.append(nameField, targetField, removeButton);
       participantList.append(item);
@@ -691,10 +694,37 @@ async function initializeOrganizer() {
       copyButton.className = "copy-button";
       copyButton.type = "button";
       copyButton.dataset.url = result.url;
-      copyButton.textContent = "Copier le lien";
+      copyButton.dataset.copyLabel = "Copier le lien";
+      copyButton.append(createClipboardIcon());
+      const copyLabel = document.createElement("span");
+      copyLabel.className = "copy-button-label";
+      copyLabel.textContent = "Copier le lien";
+      copyButton.append(copyLabel);
       item.append(name, copyButton);
       resultList.append(item);
     }
+  }
+
+  function createIconReference(name, className) {
+    const namespace = "http://www.w3.org/2000/svg";
+    const icon = document.createElementNS(namespace, "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("class", className);
+    icon.setAttribute("aria-hidden", "true");
+    icon.setAttribute("focusable", "false");
+    const use = document.createElementNS(namespace, "use");
+    use.setAttribute("href", `icons.svg#${name}`);
+    icon.append(use);
+    return icon;
+  }
+
+  function createClipboardIcon() {
+    return createIconReference("clipboard", "lucide lucide-clipboard preview-icon");
+  }
+
+  function setCopyButtonState(button, copied) {
+    button.querySelector(".copy-button-label").textContent = copied ? "Lien copié" : button.dataset.copyLabel;
+    button.querySelector("svg use").setAttribute("href", `icons.svg#${copied ? "check" : "clipboard"}`);
   }
 
   function updateAdminLink(url = window.location.href) {
@@ -760,7 +790,7 @@ async function initializeOrganizer() {
     }
 
     dialogDescription.textContent = description
-      || "Attention, modifier la liste effacera le tirage et les liens précédemment générés. Voulez-vous continuer ?";
+      || "Attention, modifier la liste effacera le tirage et les liens précédemment générés. Voulez-vous continuer ?";
     pendingChange = () => apply(change);
     dialog.showModal();
   }
@@ -929,7 +959,7 @@ async function initializeOrganizer() {
         eventInput.value = nextName;
       },
       () => { void renameEvent(nextName); },
-      "Le nom de l’événement va changer. Les attributions resteront identiques, mais les liens des participants seront renouvelés. Voulez-vous continuer ?",
+      "Le nom de l’événement va changer. Les attributions resteront identiques, mais les liens des participants seront renouvelés. Voulez-vous continuer ?",
     );
   });
 
@@ -1171,9 +1201,9 @@ async function initializeOrganizer() {
   function openRegenerateDialog(forExample) {
     regenerateExample = forExample;
     regenerateDescription.textContent = forExample
-      ? "Un autre exemple choisi au hasard remplacera le tirage actuel et ses liens. Voulez-vous continuer ?"
-      : "Un nouveau tirage va modifier le tirage actuel et remplacer les liens générés. Voulez-vous continuer ?";
-    confirmRegenerateButton.textContent = forExample
+      ? "Un autre exemple choisi au hasard remplacera le tirage actuel et ses liens. Voulez-vous continuer ?"
+      : "Un nouveau tirage va modifier le tirage actuel et remplacer les liens générés. Voulez-vous continuer ?";
+    confirmRegenerateLabel.textContent = forExample
       ? "Visualiser un autre exemple"
       : "Générer un nouveau tirage";
     regenerateDialog.showModal();
@@ -1230,13 +1260,14 @@ async function initializeOrganizer() {
 
     try {
       await navigator.clipboard.writeText(button.dataset.url);
-      button.textContent = "Lien copié ✓";
+      setCopyButtonState(button, true);
       showStatus(`Le lien de ${button.previousElementSibling.textContent} a été copié.`);
       window.setTimeout(() => {
-        if (button.isConnected) button.textContent = "Copier le lien";
+        if (button.isConnected) setCopyButtonState(button, false);
       }, 2200);
     } catch (error) {
       console.error("Impossible de copier le lien dans le presse-papiers.", error);
+      setCopyButtonState(button, false);
       showStatus("La copie automatique est indisponible. Ouvrez le lien depuis un navigateur sécurisé et réessayez.", "error");
     }
   });
@@ -1245,13 +1276,19 @@ async function initializeOrganizer() {
   document.querySelector("#copy-admin-link").addEventListener("click", async () => {
     const adminLink = document.querySelector("#admin-link");
     const adminLinkStatus = document.querySelector("#admin-link-status");
+    const button = document.querySelector("#copy-admin-link");
     try {
       updateAdminLink();
       await navigator.clipboard.writeText(adminLink.value);
+      setCopyButtonState(button, true);
       adminLinkStatus.textContent = "Le lien d’administration a été copié. Conservez-le pour retrouver ce tirage.";
       delete adminLinkStatus.dataset.kind;
+      window.setTimeout(() => {
+        if (button.isConnected) setCopyButtonState(button, false);
+      }, 2200);
     } catch (error) {
       console.error("Impossible de copier le lien d’administration.", error);
+      setCopyButtonState(button, false);
       adminLinkStatus.textContent = "La copie automatique est indisponible. Sélectionnez et copiez le lien manuellement.";
       adminLinkStatus.dataset.kind = "error";
       adminLink.focus();
@@ -1331,7 +1368,7 @@ async function initializeSecret() {
     greeting.textContent = `Bonjour ${assignment.giver} !`;
     const reveal = document.createElement("p");
     reveal.className = "secret-reveal";
-    reveal.append("Pour ce tirage, tu dois faire un cadeau à :");
+    reveal.append("Pour ce tirage, tu dois faire un cadeau à :");
     const recipient = document.createElement("strong");
     recipient.textContent = assignment.recipient;
     reveal.append(recipient);

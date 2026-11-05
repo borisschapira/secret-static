@@ -13,20 +13,20 @@
     <a class="skip-link" href="#main">Aller au contenu</a>
     <header class="site-header">
       <a class="brand" href="index.html" aria-label="Secret, accueil">
-        <span class="brand-mark" aria-hidden="true">✳</span>
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="icons.svg#gift"/></svg></span>
         <span>Secret</span>
       </a>
-      <span class="header-note">Organisez vos échanges de cadeaux, simplement.</span>
+      <span class="header-note">Chacun sa surprise !</span>
     </header>
 
     <main id="main" class="page-shell">
       <section class="intro">
-        <p class="eyebrow"><span aria-hidden="true">✦</span> Un tirage bien organisé</p>
+        <p class="eyebrow"><svg class="intro-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#wand-sparkles"/></svg> Un tirage bien organisé</p>
         <h1>Le plaisir d’offrir,<br><em>en toute surprise.</em></h1>
         <p class="intro-copy">Créez votre tirage en quelques instants. Un lien privé sera créé pour chaque participant, avec le nom de la personne à qui offrir un cadeau.</p>
         <div class="privacy-note">
-          <span class="privacy-icon" aria-hidden="true">⌑</span>
-          <p><strong>Vos données restent privées.</strong> L’état du formulaire est chiffré dans l’URL et dans le stockage local de ce navigateur. Vous pouvez conserver le lien pour reprendre l’administration ailleurs ; aucun nom en clair n’est enregistré par l’application.</p>
+          <span class="privacy-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="icons.svg#lock-keyhole"/></svg></span>
+          <p><strong>Vos données restent privées.</strong> L’état du formulaire est chiffré dans l’URL et dans le stockage local de ce navigateur. Vous pouvez conserver le lien pour reprendre l’administration ailleurs ; aucun nom en clair n’est enregistré par l’application.</p>
         </div>
       </section>
 
@@ -59,17 +59,18 @@
           <label for="participant-name">Nom du participant</label>
           <div class="add-row">
             <input id="participant-name" name="participant-name" type="text" maxlength="100" placeholder="Ex. Camille" autocomplete="off" required aria-describedby="participant-error">
-            <button class="button button-secondary" type="submit"><span aria-hidden="true">+</span> Ajouter</button>
+            <button class="button button-secondary" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#plus"/></svg> Ajouter</button>
           </div>
           <p id="participant-error" class="field-error" aria-live="polite"></p>
         </form>
 
         <div class="card-footer">
-          <p class="field-help"><span aria-hidden="true">↗</span> Vous pouvez fixer une attribution pour certaines personnes ; les autres seront tirées au sort.</p>
+          <p class="field-help"><svg class="field-help-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#move-up-right"/></svg> Vous pouvez fixer une attribution pour certaines personnes ; les autres seront tirées au sort.</p>
           <div class="card-footer-actions">
-            <button id="clear-form" class="button button-secondary" type="button">Vider le formulaire</button>
+            <button id="clear-form" class="button button-secondary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#broom-sparkles"/></svg><span>Nettoyer le formulaire</span></button>
             <button id="generate-button" class="button button-primary" type="button" disabled>
-              <span id="generate-label">Générer les liens privés</span> <span aria-hidden="true">→</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#gift"/></svg>
+              <span id="generate-label">Générer les liens privés</span>
             </button>
           </div>
           <p id="organizer-status" class="status-message" role="status" aria-live="polite"></p>
@@ -84,13 +85,13 @@
             <h2 id="results-heading">Les liens sont générés</h2>
           </div>
         </div>
-        <p class="results-intro">Copiez et envoyez à chacun son lien personnel. Gardez le secret : chaque lien ne révèle qu’une seule attribution.</p>
+        <p class="results-intro">Copiez et envoyez à chacun son lien personnel. Gardez le secret : chaque lien ne révèle qu’une seule attribution.</p>
         <div class="admin-link-card">
           <label for="admin-link">Lien pour reprendre l’administration</label>
           <p id="admin-link-help" class="field-help">Enregistrez ce lien pour retrouver votre tirage et les liens des participants plus tard.</p>
           <div class="admin-link-row">
             <input id="admin-link" name="admin-link" type="url" readonly aria-describedby="admin-link-help">
-            <button id="copy-admin-link" class="copy-button" type="button">Copier le lien d’administration</button>
+            <button id="copy-admin-link" class="copy-button" type="button" data-copy-label="Copier le lien d’administration"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#clipboard"/></svg><span class="copy-button-label">Copier le lien d’administration</span></button>
           </div>
           <p id="admin-link-status" class="status-message" role="status" aria-live="polite"></p>
         </div>
@@ -98,53 +99,53 @@
       </section>
 
       <footer class="page-footer">
-        <span>Version 1.2.0</span>
+        <span>Version 1.3.0</span>
         <a href="https://github.com/borisschapira/secret-static">Contribuer au code ou signaler un bug</a>
-        <span>Simple, privé, toute l’année.</span>
+        <span>Simple, privé.</span>
       </footer>
     </main>
 
     <dialog id="change-dialog" class="confirm-dialog" aria-labelledby="dialog-heading" aria-describedby="dialog-description">
-      <div class="dialog-icon" aria-hidden="true">!</div>
+      <div class="dialog-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="icons.svg#delete"/></svg></div>
       <p class="eyebrow">Avant de continuer</p>
-      <h2 id="dialog-heading">Modifier le tirage ?</h2>
-      <p id="dialog-description">Attention, modifier la liste effacera le tirage et les liens précédemment générés. Voulez-vous continuer ?</p>
+      <h2 id="dialog-heading">Modifier le tirage ?</h2>
+      <p id="dialog-description">Attention, modifier la liste effacera le tirage et les liens précédemment générés. Voulez-vous continuer ?</p>
       <div class="dialog-actions">
         <button id="cancel-change" class="button button-secondary" type="button">Annuler</button>
-        <button id="confirm-change" class="button button-primary" type="button">Confirmer</button>
+        <button id="confirm-change" class="button button-primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#check"/></svg> Confirmer</button>
       </div>
     </dialog>
 
     <dialog id="clear-form-dialog" class="confirm-dialog" aria-labelledby="clear-form-heading" aria-describedby="clear-form-description">
-      <div class="dialog-icon" aria-hidden="true">!</div>
+      <div class="dialog-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="icons.svg#broom-sparkles"/></svg></div>
       <p class="eyebrow">Avant de continuer</p>
-      <h2 id="clear-form-heading">Vider le formulaire ?</h2>
-      <p id="clear-form-description">Les liens générés seront perdus. Voulez-vous vraiment vider le formulaire ?</p>
+      <h2 id="clear-form-heading">Nettoyer le formulaire ?</h2>
+      <p id="clear-form-description">Les liens générés seront perdus. Voulez-vous vraiment nettoyer le formulaire ?</p>
       <div class="dialog-actions">
         <button id="cancel-clear-form" class="button button-secondary" type="button" autofocus>Annuler</button>
-        <button id="confirm-clear-form" class="button button-primary" type="button">Vider le formulaire</button>
+        <button id="confirm-clear-form" class="button button-primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#broom-sparkles"/></svg> Nettoyer le formulaire</button>
       </div>
     </dialog>
 
     <dialog id="regenerate-dialog" class="confirm-dialog" aria-labelledby="regenerate-heading" aria-describedby="regenerate-description">
-      <div class="dialog-icon" aria-hidden="true">!</div>
+      <div class="dialog-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="icons.svg#wand-sparkles"/></svg></div>
       <p class="eyebrow">Avant de continuer</p>
-      <h2 id="regenerate-heading">Modifier le tirage ?</h2>
-      <p id="regenerate-description">Un nouveau tirage va modifier le tirage actuel et remplacer les liens générés. Voulez-vous continuer ?</p>
+      <h2 id="regenerate-heading">Modifier le tirage ?</h2>
+      <p id="regenerate-description">Un nouveau tirage va modifier le tirage actuel et remplacer les liens générés. Voulez-vous continuer ?</p>
       <div class="dialog-actions">
         <button id="cancel-regenerate" class="button button-secondary" type="button" autofocus>Annuler</button>
-        <button id="confirm-regenerate" class="button button-primary" type="button">Générer un nouveau tirage</button>
+        <button id="confirm-regenerate" class="button button-primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#gift"/></svg><span id="confirm-regenerate-label">Générer un nouveau tirage</span></button>
       </div>
     </dialog>
 
     <dialog id="restore-dialog" class="confirm-dialog" aria-labelledby="restore-heading" aria-describedby="restore-description">
-      <div class="dialog-icon" aria-hidden="true">↻</div>
+      <div class="dialog-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="icons.svg#gift"/></svg></div>
       <p class="eyebrow">Reprendre votre tirage</p>
       <h2 id="restore-heading">Un événement précédent a été trouvé</h2>
-      <p id="restore-description">Un précédent événement a été trouvé dans le stockage local de ce navigateur. Voulez-vous reprendre votre préparation e tirage ?</p>
+      <p id="restore-description">Un précédent événement a été trouvé dans le stockage local de ce navigateur. Voulez-vous reprendre votre préparation ?</p>
       <div class="dialog-actions">
         <button id="start-fresh" class="button button-secondary" type="button" autofocus>Commencer sans</button>
-        <button id="restore-saved-state" class="button button-primary" type="button">Rétablir votre évènement</button>
+        <button id="restore-saved-state" class="button button-primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#check"/></svg> Rétablir votre évènement</button>
       </div>
     </dialog>
   </body>
