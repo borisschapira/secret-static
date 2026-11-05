@@ -25,6 +25,7 @@ body {
   min-height: 100vh;
   margin: 0;
   color: var(--ink); /* vert encre */
+  font-size: 1rem;
   background:
     radial-gradient(ellipse at 12% 9%, rgb(227 233 218 / 60%), transparent 25rem), /* halo vert sauge translucide vers transparent */
     var(--cream); /* crème */
@@ -71,16 +72,6 @@ select:focus-visible {
   transform: translateY(0);
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  clip-path: inset(50%);
-}
-
 .site-header {
   display: flex;
   min-height: 78px;
@@ -114,7 +105,6 @@ select:focus-visible {
 
 .header-note {
   color: var(--muted); /* gris sauge */
-  font-size: 1rem;
 }
 
 .page-shell {
@@ -132,7 +122,6 @@ select:focus-visible {
 .eyebrow {
   margin: 0 0 0.8rem;
   color: var(--pine); /* vert pin */
-  font-size: 1rem;
   font-weight: 750;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -158,7 +147,6 @@ select:focus-visible {
   max-width: 550px;
   margin: 1.2rem auto 1.5rem;
   color: #657269; /* gris vert */
-  font-size: 1rem;
   line-height: 1.75;
 }
 
@@ -190,7 +178,6 @@ select:focus-visible {
 
 .privacy-note p {
   margin: 0;
-  font-size: 1rem;
   line-height: 1.55;
 }
 
@@ -227,7 +214,6 @@ select:focus-visible {
   color: var(--forest); /* vert forêt */
   background: #eef2e9; /* vert sauge pâle */
   font-family: Didot, "Bodoni MT", "Noto Serif Display", "URW Palladio L", P052, Sylfaen, serif;
-  font-size: 1rem;
 }
 
 .step-number--light {
@@ -258,13 +244,11 @@ select:focus-visible {
   display: block;
   margin-bottom: 0.55rem;
   color: var(--ink); /* vert encre */
-  font-size: 1rem;
   font-weight: 700;
 }
 
 .required-mark {
   color: var(--muted); /* gris sauge */
-  font-size: 1rem;
   font-weight: 400;
 }
 
@@ -294,7 +278,6 @@ select:hover {
 .field-help {
   margin: 0.5rem 0 0;
   color: var(--muted); /* gris sauge */
-  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -302,7 +285,6 @@ select:hover {
   min-height: 0;
   margin: 0.45rem 0 0;
   color: var(--red); /* rouge brique */
-  font-size: 1rem;
   line-height: 1.45;
 }
 
@@ -335,7 +317,6 @@ select:hover {
   border-radius: 99px;
   color: var(--pine); /* vert pin */
   background: #edf2e8; /* vert sauge pâle */
-  font-size: 1rem;
 }
 
 .participant-list,
@@ -366,8 +347,7 @@ select:hover {
 
 .participant-field label {
   overflow: hidden;
-  color: #647168; /* gris vert */
-  font-size: 1rem;
+  color: var(--muted); /* gris sauge */
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -379,7 +359,6 @@ select:hover {
   min-height: 42px;
   border-color: transparent; /* transparent */
   background-color: #f8f8f3; /* ivoire */
-  font-size: 1rem;
 }
 
 .participant-row input {
@@ -416,8 +395,7 @@ select:hover {
   padding: 1.1rem;
   border: 1px dashed #dfe5d9; /* gris sauge très clair */
   border-radius: 0.75rem;
-  color: #859087; /* gris sauge */
-  font-size: 1rem;
+  color: var(--muted); /* gris sauge */
   text-align: center;
 }
 
@@ -446,7 +424,6 @@ select:hover {
   border: 1px solid transparent; /* transparent */
   border-radius: 0.6rem;
   cursor: pointer;
-  font-size: 1rem;
   font-weight: 700;
   transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
 }
@@ -509,14 +486,12 @@ select:hover {
 .card-footer-actions .button-primary {
   width: min(100%, 370px);
   min-height: 54px;
-  font-size: 1rem;
 }
 
 .status-message {
   min-height: 0;
   margin: 0;
   color: var(--pine); /* vert pin */
-  font-size: 1rem;
 }
 
 .status-message:empty {
@@ -546,7 +521,6 @@ select:hover {
   max-width: 600px;
   margin: 0 0 1.25rem 3.7rem;
   color: #d2ded3; /* vert gris très clair */
-  font-size: 1rem;
   line-height: 1.65;
 }
 
@@ -562,7 +536,6 @@ select:hover {
 
 .admin-link-card > label {
   color: #f8e9ca; /* crème dorée */
-  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -592,7 +565,6 @@ select:hover {
   border-color: rgb(255 255 255 / 20%); /* blanc translucide */
   color: white; /* blanc */
   background: rgb(7 34 25 / 35%); /* vert forêt très sombre translucide */
-  font-size: 1rem;
 }
 
 .admin-link-row .copy-button {
@@ -617,7 +589,6 @@ select:hover {
 .result-name {
   overflow: hidden;
   color: white; /* blanc */
-  font-size: 1rem;
   font-weight: 650;
   text-overflow: ellipsis;
 }
@@ -634,7 +605,6 @@ select:hover {
   color: #f8e9ca; /* crème dorée */
   background: transparent; /* transparent */
   cursor: pointer;
-  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -653,7 +623,6 @@ select:hover {
   gap: 1rem;
   margin: 2.5rem auto 0;
   color: var(--muted); /* gris sauge */
-  font-size: 1rem;
 }
 
 .confirm-dialog {
@@ -694,7 +663,6 @@ select:hover {
 
 .confirm-dialog > p:not(.eyebrow) {
   color: #647168; /* gris vert */
-  font-size: 1rem;
   line-height: 1.65;
 }
 
@@ -786,7 +754,6 @@ select:hover {
   border-radius: 0.7rem;
   color: #8f3c35; /* rouge brique foncé */
   background: #fbefec; /* rose très pâle */
-  font-size: 1rem;
   line-height: 1.65;
 }
 
@@ -798,7 +765,6 @@ select:hover {
   display: inline-block;
   margin-top: 2.3rem;
   color: var(--pine); /* vert pin */
-  font-size: 1rem;
   font-weight: 650;
   text-decoration-color: #c6d0c4; /* gris sauge clair */
   text-underline-offset: 4px;
@@ -807,7 +773,6 @@ select:hover {
 .secret-footer {
   margin: 1.5rem 0 0;
   color: var(--muted); /* gris sauge */
-  font-size: 1rem;
 }
 
 .secret-footer span {
@@ -822,7 +787,6 @@ select:hover {
 
   .header-note {
     max-width: 130px;
-    font-size: 1rem;
     text-align: right;
   }
 
@@ -860,7 +824,6 @@ select:hover {
   .participant-row input,
   .participant-row select {
     padding-inline: 0.55rem;
-    font-size: 1rem;
   }
 
   .icon-button {
@@ -907,7 +870,6 @@ select:hover {
 
   .copy-button {
     padding-inline: 0.55rem;
-    font-size: 1rem;
   }
 
   .page-footer {

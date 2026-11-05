@@ -1,16 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  assignRecipients,
   createDraw,
-  createExampleParticipants,
   createExampleStates,
   decryptAssignment,
   decryptAdminState,
   encryptAdminState,
   IMPOSSIBLE_DRAW_ERROR,
   isExampleState,
+  renameDraw,
   validateParticipantName,
-} from "../app.js";
+} from "../dist/app.js";
 
 const participants = [
   { id: "1", name: "Camille", targetId: "" },
@@ -19,54 +20,96 @@ const participants = [
   { id: "4", name: "Noé", targetId: "" },
 ];
 
-test("creates an example from one of the supported pop-culture teams", () => {
-  const supportedTeams = [
-    ["Fred", "Daphné", "Véra", "Sammy", "Scooby-Doo"],
-    ["Buffy", "Willow", "Alex", "Giles", "Cordelia"],
-    ["Iron Man", "Captain America", "Thor", "Hulk", "Black Widow", "Hawkeye"],
-    ["Rachel", "Monica", "Phoebe", "Joey", "Chandler", "Ross"],
-    ["Frodon", "Sam", "Aragorn", "Legolas", "Gimli", "Gandalf"],
-    ["Leonardo", "Michelangelo", "Donatello", "Raphaël", "Splinter"],
-  ];
+function hasValidAssignment(participantList) {
+  const recipients = participantList.map(({ id }) => id);
+  const assignments = new Map();
 
-  const example = createExampleParticipants();
-  const names = example.participants.map(({ name }) => name);
+  function search(index, usedRecipients) {
+    if (index === participantList.length) {
+      return participantList.every(({ id }) => assignments.get(assignments.get(id)) !== id);
+    }
 
-  assert.match(example.eventName, /^Exemple — /u);
-  assert.ok(names.length >= 3);
-  assert.ok(supportedTeams.some((team) => team.length === names.length && team.every((name) => names.includes(name))));
-  assert.deepEqual(
-    example.participants.map(({ id }) => id),
-    names.map((_, index) => String(index + 1)),
-  );
-  assert.ok(example.participants.every(({ targetId }) => targetId === ""));
-});
+    const giver = participantList[index];
+    const candidates = giver.targetId ? [giver.targetId] : recipients;
+    for (const recipientId of candidates) {
+      if (
+        recipientId === giver.id
+        || !recipients.includes(recipientId)
+        || usedRecipients.has(recipientId)
+      ) {
+        continue;
+      }
 
-test("recognizes example states and can select a different team", () => {
-  const example = createExampleParticipants();
-  const state = {
-    eventName: example.eventName,
-    eventDraft: example.eventName,
-    participants: example.participants,
+      assignments.set(giver.id, recipientId);
+      usedRecipients.add(recipientId);
+      if (search(index + 1, usedRecipients)) return true;
+      assignments.delete(giver.id);
+      usedRecipients.delete(recipientId);
+    }
+
+    return false;
+  }
+
+  return search(0, new Set());
+}
+
+function assertCompleteAssignment(assignment, participantList) {
+  const participantIds = new Set(participantList.map(({ id }) => id));
+  assert.equal(assignment.size, participantList.length);
+  assert.deepEqual(new Set(assignment.keys()), participantIds);
+  assert.deepEqual(new Set(assignment.values()), participantIds);
+  assert.ok([...assignment].every(([giverId, recipientId]) => (
+    giverId !== recipientId
+    && assignment.get(recipientId) !== giverId
+  )));
+  assert.ok(participantList.every(({ id, targetId }) => (
+    !targetId || assignment.get(id) === targetId
+  )));
+}
+
+function validAdminState() {
+  return {
+    eventName: "Échange entre amis",
+    eventDraft: "Échange entre amis",
+    participantDraft: "",
+    participants: [
+      { id: "1", name: "Camille", targetId: "2" },
+      { id: "2", name: "Alex", targetId: "" },
+      { id: "3", name: "Sam", targetId: "" },
+    ],
+    participantNameDrafts: { "1": "Camille B." },
+    targetDrafts: { "2": "3" },
+    generatedLinks: [
+      { name: "Camille", url: "https://example.test/secret.html?token=abc_123" },
+    ],
   };
+}
 
-  assert.equal(isExampleState(state), true);
-  assert.equal(isExampleState({ ...state, eventDraft: "Événement modifié" }), false);
-  assert.equal(isExampleState({ ...state, participants: participants.slice(0, 3) }), false);
-  assert.notEqual(createExampleParticipants(example.eventName).eventName, example.eventName);
-});
-
-test("precomputes and encrypts one reusable draw state for every example team", async () => {
+test("precomputes and recognizes each supported example team", async () => {
+  const supportedTeams = [
+    ["Exemple — Scooby-Doo", ["Fred", "Daphné", "Véra", "Sammy", "Scooby-Doo"]],
+    ["Exemple — Buffy contre les vampires", ["Buffy", "Willow", "Alex", "Giles", "Cordelia"]],
+    ["Exemple — Avengers", ["Iron Man", "Captain America", "Thor", "Hulk", "Black Widow", "Hawkeye"]],
+    ["Exemple — Friends", ["Rachel", "Monica", "Phoebe", "Joey", "Chandler", "Ross"]],
+    ["Exemple — Le Seigneur des anneaux", ["Frodon", "Sam", "Aragorn", "Legolas", "Gimli", "Gandalf"]],
+    ["Exemple — Les Tortues Ninja", ["Leonardo", "Michelangelo", "Donatello", "Raphaël", "Splinter"]],
+  ];
   const baseUrl = new URL("https://example.test/secret.html");
   const snapshots = await createExampleStates(baseUrl);
 
-  assert.equal(snapshots.length, 6);
-  assert.equal(new Set(snapshots.map(({ eventName }) => eventName)).size, snapshots.length);
+  assert.deepEqual(
+    snapshots.map(({ eventName, participants: team }) => [
+      eventName,
+      team.map(({ name }) => name),
+    ]),
+    supportedTeams,
+  );
 
-  for (const { eventName, state: savedState, token } of snapshots) {
-    const state = await decryptAdminState(token);
-    assert.deepEqual(state, savedState);
+  for (const state of snapshots) {
+    const { eventName } = state;
     assert.equal(isExampleState(state), true);
+    assert.equal(isExampleState({ ...state, eventDraft: "Événement modifié" }), false);
+    assert.equal(isExampleState({ ...state, participants: participants.slice(0, 3) }), false);
     assert.equal(state.generatedLinks.length, state.participants.length);
     assert.ok(state.generatedLinks.every(({ url }) => new URL(url).origin === baseUrl.origin));
 
@@ -79,6 +122,43 @@ test("precomputes and encrypts one reusable draw state for every example team", 
       new Set(assignments.map(({ giver }) => giver)),
       new Set(state.participants.map(({ name }) => name)),
     );
+    assert.deepEqual(
+      new Set(assignments.map(({ recipient }) => recipient)),
+      new Set(state.participants.map(({ name }) => name)),
+    );
+    const recipientsByGiver = new Map(assignments.map(({ giver, recipient }) => [giver, recipient]));
+    assert.ok(assignments.every(({ giver, recipient }) => (
+      giver !== recipient && recipientsByGiver.get(recipient) !== giver
+    )));
+  }
+});
+
+test("satisfies every possible manual-assignment configuration for three and four participants", () => {
+  for (const count of [3, 4]) {
+    const ids = Array.from({ length: count }, (_, index) => String(index + 1));
+    const optionsByGiver = ids.map((id) => ["", ...ids.filter((candidate) => candidate !== id)]);
+    const configurationCount = count ** count;
+
+    for (let configuration = 0; configuration < configurationCount; configuration += 1) {
+      let choices = configuration;
+      const currentParticipants = ids.map((id, index) => {
+        const options = optionsByGiver[index];
+        const targetId = options[choices % count];
+        choices = Math.floor(choices / count);
+        return { id, name: `Participant ${id}`, targetId };
+      });
+      const originalParticipants = currentParticipants.map((participant) => ({ ...participant }));
+      const expectedFeasibility = hasValidAssignment(currentParticipants);
+      const assignment = assignRecipients(currentParticipants);
+
+      assert.equal(
+        Boolean(assignment),
+        expectedFeasibility,
+        `Feasibility mismatch for ${count} participants, configuration ${configuration}`,
+      );
+      if (assignment) assertCompleteAssignment(assignment, currentParticipants);
+      assert.deepEqual(currentParticipants, originalParticipants);
+    }
   }
 });
 
@@ -110,11 +190,11 @@ test("creates a complete draw with one recipient per participant and no self-gif
 
   assert.deepEqual(new Set(assignments.map(({ giver }) => giver)), new Set(participants.map(({ name }) => name)));
   assert.ok(assignments.every(({ eventName }) => eventName === "Échange en famille"));
-  assert.ok(assignments.every(({ giver, recipient }) => giver !== recipient));
-  const recipientsByGiver = new Map(assignments.map(({ giver, recipient }) => [giver, recipient]));
-  assert.ok(assignments.every(({ giver, recipient }) => recipientsByGiver.get(recipient) !== giver));
-  assert.equal(new Set(recipients).size, participants.length);
   assert.deepEqual(new Set(recipients), new Set(participants.map(({ name }) => name)));
+  const recipientByGiver = new Map(assignments.map(({ giver, recipient }) => [giver, recipient]));
+  assert.ok(assignments.every(({ giver, recipient }) => (
+    giver !== recipient && recipientByGiver.get(recipient) !== giver
+  )));
 });
 
 test("respects manual assignments when creating a draw", async () => {
@@ -135,6 +215,36 @@ test("respects manual assignments when creating a draw", async () => {
   )));
   const recipientsByGiver = new Map(assignments.map(({ giver, recipient }) => [giver, recipient]));
   assert.ok(assignments.every(({ giver, recipient }) => recipientsByGiver.get(recipient) !== giver));
+});
+
+test("renames a draw while preserving every giver-recipient assignment", async () => {
+  const originalLinks = await createDraw(
+    "Échange de Noël",
+    participants,
+    new URL("https://example.test/secret.html"),
+  );
+  const originalAssignments = new Map(await Promise.all(originalLinks.map(async ({ url }) => {
+    const assignment = await decryptAssignment(new URL(url).searchParams.get("token"));
+    return [assignment.giver, assignment.recipient];
+  })));
+  const originalTokens = originalLinks.map(({ url }) => new URL(url).searchParams.get("token"));
+  const renamedLinks = await renameDraw("Échange d’hiver", originalLinks);
+
+  assert.equal(renamedLinks.length, originalLinks.length);
+  const renamedAssignments = await Promise.all(renamedLinks.map(async ({ name, url }) => ({
+    name,
+    ...await decryptAssignment(new URL(url).searchParams.get("token")),
+  })));
+  assert.deepEqual(
+    new Map(renamedAssignments.map(({ giver, recipient }) => [giver, recipient])),
+    originalAssignments,
+  );
+  assert.ok(renamedAssignments.every(({ eventName }) => eventName === "Échange d’hiver"));
+  assert.ok(renamedAssignments.every(({ name, giver }) => name === giver));
+  assert.deepEqual(
+    originalLinks.map(({ url }) => new URL(url).searchParams.get("token")),
+    originalTokens,
+  );
 });
 
 test("returns the impossible-draw error result when constraints cannot be satisfied", async () => {
@@ -169,6 +279,31 @@ test("returns the impossible-draw error result when constraints cannot be satisf
     IMPOSSIBLE_DRAW_ERROR,
     "Tirage impossible. Vérifiez les attributions manuelles et évitez les échanges réciproques.",
   );
+});
+
+test("rejects manual assignments with self, missing, duplicate or reciprocal targets", () => {
+  const invalidCases = [
+    participants.map((participant) => (
+      participant.id === "1" ? { ...participant, targetId: "1" } : participant
+    )),
+    participants.map((participant) => (
+      participant.id === "1" ? { ...participant, targetId: "missing" } : participant
+    )),
+    participants.map((participant) => (
+      participant.id === "1" || participant.id === "3"
+        ? { ...participant, targetId: "2" }
+        : participant
+    )),
+    participants.map((participant) => {
+      if (participant.id === "1") return { ...participant, targetId: "2" };
+      if (participant.id === "2") return { ...participant, targetId: "1" };
+      return participant;
+    }),
+  ];
+
+  for (const invalidAssignment of invalidCases) {
+    assert.equal(assignRecipients(invalidAssignment), null);
+  }
 });
 
 test("rejects duplicate participant names with the expected message", () => {
@@ -215,21 +350,7 @@ test("rejects corrupted and altered generated links", async () => {
 });
 
 test("encrypts and restores the complete administration state", async () => {
-  const state = {
-    eventName: "Échange entre amis",
-    eventDraft: "Échange entre amis, brouillon",
-    participantDraft: "Nina",
-    participants: [
-      { id: "1", name: "Camille", targetId: "2" },
-      { id: "2", name: "Alex", targetId: "" },
-    ],
-    participantNameDrafts: { "1": "Camille, brouillon" },
-    targetDrafts: { "1": "2" },
-    generatedLinks: [
-      { name: "Camille", url: "https://example.test/secret.html?token=abc_123" },
-    ],
-  };
-
+  const state = validAdminState();
   const token = await encryptAdminState(state);
 
   assert.match(token, /^[\da-z_-]+$/iu);
@@ -237,19 +358,35 @@ test("encrypts and restores the complete administration state", async () => {
   await assert.rejects(decryptAdminState(`${token[0] === "A" ? "B" : "A"}${token.slice(1)}`));
 });
 
-test("rejects administration states with participant names over 100 characters", async () => {
-  const state = {
-    eventName: "",
-    eventDraft: "",
-    participantDraft: "",
-    participants: [{ id: "1", name: "a".repeat(101), targetId: "" }],
-    participantNameDrafts: {},
-    targetDrafts: {},
-    generatedLinks: null,
-  };
+test("rejects malformed, truncated and altered administration tokens", async () => {
+  await assert.rejects(decryptAdminState("not-a-valid-token"));
+  await assert.rejects(decryptAdminState("A"));
+  await assert.rejects(decryptAdminState("A".repeat(100)));
+});
 
-  await assert.rejects(encryptAdminState(state), {
-    name: "TypeError",
-    message: "État administratif invalide.",
-  });
+test("rejects malformed administration state data", async (t) => {
+  const invalidCases = [
+    ["missing required event name", (state) => { delete state.eventName; }],
+    ["non-string participant draft", (state) => { state.participantDraft = null; }],
+    ["duplicate participant IDs", (state) => { state.participants[1].id = "1"; }],
+    ["participant target to a missing ID", (state) => { state.participants[0].targetId = "missing"; }],
+    ["participant target to itself", (state) => { state.participants[0].targetId = "1"; }],
+    ["draft for a missing participant", (state) => { state.participantNameDrafts.missing = "Draft"; }],
+    ["target draft to a missing participant", (state) => { state.targetDrafts["2"] = "missing"; }],
+    ["participant draft over 100 characters", (state) => { state.participantNameDrafts["1"] = "a".repeat(101); }],
+    ["generated links with a malformed URL", (state) => { state.generatedLinks[0].url = "not-a-url"; }],
+    ["generated links without a token", (state) => { state.generatedLinks[0].url = "https://example.test/secret.html"; }],
+  ];
+
+  for (const [description, invalidate] of invalidCases) {
+    await t.test(description, async () => {
+      const state = structuredClone(validAdminState());
+      invalidate(state);
+
+      await assert.rejects(encryptAdminState(state), {
+        name: "TypeError",
+        message: "État administratif invalide.",
+      });
+    });
+  }
 });

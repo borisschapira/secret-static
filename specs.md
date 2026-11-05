@@ -27,7 +27,7 @@ L'application est statique et fonctionne entièrement dans le navigateur : aucun
 
 ### Modifications après génération
 
-Après génération, toute modification confirmée de l'événement, des participants ou des attributions demande une confirmation. Si elle est confirmée, les liens précédemment générés sont supprimés et l'administration revient à l'étape de préparation. Une annulation conserve le tirage.
+Après génération, toute modification confirmée de l'événement, des participants ou des attributions demande une confirmation. Si seul le nom de l'événement change, les liens sont renouvelés avec ce nom, mais les attributions (qui offre à qui) restent identiques. Si les participants ou les attributions changent, les anciens liens sont supprimés et l'administration revient à l'étape de préparation. Une annulation conserve le tirage.
 
 Un clic sur « Générer les liens privés » lorsqu'un tirage existe demande confirmation avant de le remplacer par un nouveau tirage. Une annulation conserve le tirage et ses liens.
 
@@ -39,7 +39,7 @@ Un clic sur « Générer les liens privés » lorsqu'un tirage existe demande co
 - Chaque enregistrement ajoute une entrée à l'historique du navigateur. Les boutons précédent/suivant restaurent l'état correspondant et le rechargement restaure l'état de l'URL.
 - Après la génération, l'interface affiche l'URL d'administration complète et permet de la copier pour reprendre ultérieurement l'accès aux résultats.
 - Le bouton « Vider le formulaire » ajoute l'état courant à l'historique du navigateur, puis vide tous les champs et remplace l'entrée courante par l'état vide. Si un tirage a été généré, une confirmation prévient que ses liens seront perdus.
-- Quand le formulaire est vide, le bouton principal propose de visualiser un exemple. Au premier usage, l'application calcule et chiffre un tirage pour chacune des équipes, puis sauvegarde les états dans le stockage local ; les visualisations suivantes réutilisent ces mêmes états et liens. Elle choisit aléatoirement une équipe, préremplit l'événement et les participants ; dès qu'une saisie commence, le bouton reprend son libellé et son comportement habituels. Si l'état correspond à un exemple connu, y compris après restauration depuis son URL, le bouton propose d'en visualiser un autre ; après confirmation, une autre équipe est choisie au hasard.
+- Quand le formulaire est vide, le bouton principal propose de visualiser un exemple. Au premier usage, l'application calcule un tirage pour chacune des équipes en mémoire ; les visualisations suivantes de la page réutilisent ces mêmes états et liens. Elle choisit aléatoirement une équipe, préremplit l'événement et les participants ; dès qu'une saisie commence, le bouton reprend son libellé et son comportement habituels. Si l'état correspond à un exemple connu, y compris après restauration depuis son URL, le bouton propose d'en visualiser un autre ; après confirmation, une autre équipe est choisie au hasard.
 
 ## Écran participant (`secret.html`)
 

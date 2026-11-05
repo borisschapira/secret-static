@@ -2,7 +2,6 @@ const AES_KEY = "Santa2026SecretKeyForBrowserOnly";
 const ADMIN_STATE_KEY = "SecretAdminStateKeyForBrowser26!";
 const ADMIN_STATE_PARAM = "state";
 const LOCAL_ADMIN_STATE_KEY = "secret-admin-state-v2";
-const LOCAL_EXAMPLE_STATES_KEY = "secret-example-states-v1";
 const ADMIN_STATE_VERSION = 2;
 const MAX_PARTICIPANT_NAME_LENGTH = 100;
 const SEPARATOR = "§";
@@ -49,19 +48,6 @@ function randomIndex(max) {
   } while (value[0] >= limit);
 
   return value[0] % max;
-}
-
-export function createExampleParticipants(excludedEventName = "") {
-  const teams = EXAMPLE_TEAMS.filter(({ name }) => `Exemple — ${name}` !== excludedEventName);
-  const team = teams[randomIndex(teams.length)];
-  return {
-    eventName: `Exemple — ${team.name}`,
-    participants: team.participants.map((name, index) => ({
-      id: String(index + 1),
-      name,
-      targetId: "",
-    })),
-  };
 }
 
 export function isExampleState(state) {
@@ -206,26 +192,13 @@ function base64UrlDecode(token) {
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
-// Importe la clé dédiée aux liens personnels de tirage.
-async function getEncryptionKey() {
-  return crypto.subtle.importKey("raw", encoder.encode(AES_KEY), "AES-GCM", false, ["encrypt", "decrypt"]);
-}
-
-// Importe séparément la clé utilisée pour reprendre l'administration.
-async function getAdminStateKey() {
-  return crypto.subtle.importKey("raw", encoder.encode(ADMIN_STATE_KEY), "AES-GCM", false, ["encrypt", "decrypt"]);
-}
-
-// Chiffre l'état complet du formulaire pour l'enregistrer dans l'URL.
-export async function encryptAdminState(state) {
-  if (!isValidAdminState(state)) throw new TypeError("État administratif invalide.");
-
+async function encryptText(plaintext, rawKey) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const plaintext = encoder.encode(JSON.stringify({ version: ADMIN_STATE_VERSION, state }));
+  const key = await crypto.subtle.importKey("raw", encoder.encode(rawKey), "AES-GCM", false, ["encrypt"]);
   const encrypted = new Uint8Array(await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
-    await getAdminStateKey(),
-    plaintext,
+    key,
+    encoder.encode(plaintext),
   ));
   const payload = new Uint8Array(iv.length + encrypted.length);
   payload.set(iv);
@@ -234,19 +207,31 @@ export async function encryptAdminState(state) {
   return base64UrlEncode(payload);
 }
 
-// Déchiffre un état de formulaire et vérifie sa version ainsi que sa structure.
-export async function decryptAdminState(token) {
+async function decryptText(token, rawKey, incompleteMessage) {
   const payload = base64UrlDecode(token);
-  if (payload.length < 29) throw new Error("État enregistré incomplet.");
+  if (payload.length < 29) throw new Error(incompleteMessage);
 
   const iv = payload.slice(0, 12);
   const ciphertext = payload.slice(12);
+  const key = await crypto.subtle.importKey("raw", encoder.encode(rawKey), "AES-GCM", false, ["decrypt"]);
   const plaintext = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv },
-    await getAdminStateKey(),
+    key,
     ciphertext,
   );
-  const parsed = JSON.parse(decoder.decode(plaintext));
+  return decoder.decode(plaintext);
+}
+
+// Chiffre l'état complet du formulaire pour l'enregistrer dans l'URL.
+export async function encryptAdminState(state) {
+  if (!isValidAdminState(state)) throw new TypeError("État administratif invalide.");
+
+  return encryptText(JSON.stringify({ version: ADMIN_STATE_VERSION, state }), ADMIN_STATE_KEY);
+}
+
+// Déchiffre un état de formulaire et vérifie sa version ainsi que sa structure.
+export async function decryptAdminState(token) {
+  const parsed = JSON.parse(await decryptText(token, ADMIN_STATE_KEY, "État enregistré incomplet."));
   if (parsed.version !== ADMIN_STATE_VERSION || !isValidAdminState(parsed.state)) {
     throw new Error("État enregistré invalide.");
   }
@@ -289,6 +274,15 @@ function isValidAdminState(state) {
     participantIds.add(participant.id);
   }
 
+  for (const participant of state.participants) {
+    if (
+      participant.targetId
+      && (!participantIds.has(participant.targetId) || participant.targetId === participant.id)
+    ) {
+      return false;
+    }
+  }
+
   for (const [id, name] of Object.entries(state.participantNameDrafts)) {
     if (!participantIds.has(id) || typeof name !== "string" || name.length > MAX_PARTICIPANT_NAME_LENGTH) return false;
   }
@@ -316,33 +310,13 @@ function isValidAdminState(state) {
 
 // Crée un jeton qui ne contient que l'attribution d'une personne.
 export async function encryptAssignment(eventName, giver, recipient) {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const plaintext = encoder.encode([eventName, giver, recipient].join(SEPARATOR));
-  const encrypted = new Uint8Array(await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    await getEncryptionKey(),
-    plaintext,
-  ));
-  const payload = new Uint8Array(iv.length + encrypted.length);
-  payload.set(iv);
-  payload.set(encrypted, iv.length);
-
-  return base64UrlEncode(payload);
+  return encryptText([eventName, giver, recipient].join(SEPARATOR), AES_KEY);
 }
 
 // Déchiffre un lien personnel et en extrait l'événement, le donneur et le destinataire.
 export async function decryptAssignment(token) {
-  const payload = base64UrlDecode(token);
-  if (payload.length < 29) throw new Error("Contenu de lien incomplet.");
-
-  const iv = payload.slice(0, 12);
-  const ciphertext = payload.slice(12);
-  const plaintext = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    await getEncryptionKey(),
-    ciphertext,
-  );
-  const values = decoder.decode(plaintext).split(SEPARATOR);
+  const plaintext = await decryptText(token, AES_KEY, "Contenu de lien incomplet.");
+  const values = plaintext.split(SEPARATOR);
 
   if (values.length !== 3 || values.some((value) => !value.trim())) {
     throw new Error("Contenu de lien invalide.");
@@ -390,6 +364,18 @@ export async function createDraw(eventName, participants, baseUrl) {
   }));
 }
 
+export async function renameDraw(eventName, links) {
+  return Promise.all(links.map(async ({ url }) => {
+    const link = new URL(url);
+    const token = link.searchParams.get("token");
+    if (!token) throw new Error("Lien de tirage incomplet.");
+
+    const { giver, recipient } = await decryptAssignment(token);
+    link.searchParams.set("token", await encryptAssignment(eventName, giver, recipient));
+    return { name: giver, url: link.href };
+  }));
+}
+
 export async function createExampleStates(baseUrl) {
   return Promise.all(EXAMPLE_TEAMS.map(async ({ name, participants: names }) => {
     const eventName = `Exemple — ${name}`;
@@ -411,7 +397,7 @@ export async function createExampleStates(baseUrl) {
       generatedLinks,
     };
 
-    return { eventName, state, token: await encryptAdminState(state) };
+    return state;
   }));
 }
 
@@ -433,6 +419,7 @@ async function initializeOrganizer() {
   const results = document.querySelector("#results");
   const resultList = document.querySelector("#result-list");
   const dialog = document.querySelector("#change-dialog");
+  const dialogDescription = document.querySelector("#dialog-description");
   const confirmButton = document.querySelector("#confirm-change");
   const cancelButton = document.querySelector("#cancel-change");
   const restoreDialog = document.querySelector("#restore-dialog");
@@ -460,7 +447,6 @@ async function initializeOrganizer() {
   let organizerReady = false;
   let regenerateExample = false;
   let exampleStatesPromise;
-  let exampleCacheWarning = "";
 
   eventInput.disabled = true;
   participantInput.disabled = true;
@@ -512,51 +498,10 @@ async function initializeOrganizer() {
     }
   }
 
-  async function getExampleStateTokens() {
+  async function getExampleStates() {
     if (!exampleStatesPromise) {
       const baseUrl = new URL("secret.html", document.baseURI);
-      exampleStatesPromise = (async () => {
-        try {
-          const serialized = window.localStorage.getItem(LOCAL_EXAMPLE_STATES_KEY);
-          if (serialized) {
-            const cache = JSON.parse(serialized);
-            if (
-              cache.version === 1
-              && cache.baseUrl === baseUrl.href
-              && cache.tokens
-              && typeof cache.tokens === "object"
-              && !Array.isArray(cache.tokens)
-            ) {
-              const isComplete = await Promise.all(EXAMPLE_TEAMS.map(async ({ name, participants }) => {
-                const eventName = `Exemple — ${name}`;
-                const token = cache.tokens[eventName];
-                if (typeof token !== "string") return false;
-                const state = await decryptAdminState(token);
-                return isExampleState(state)
-                  && state.generatedLinks?.length === participants.length
-                  && state.generatedLinks.every(({ name: participantName }) => participants.includes(participantName));
-              }));
-              if (isComplete.every(Boolean)) return cache.tokens;
-            }
-          }
-        } catch (error) {
-          console.error("Impossible de lire ou vérifier les états d’exemple sauvegardés.", error);
-        }
-
-        const snapshots = await createExampleStates(baseUrl);
-        const tokens = Object.fromEntries(snapshots.map(({ eventName, token }) => [eventName, token]));
-        try {
-          window.localStorage.setItem(LOCAL_EXAMPLE_STATES_KEY, JSON.stringify({
-            version: 1,
-            baseUrl: baseUrl.href,
-            tokens,
-          }));
-        } catch (error) {
-          console.error("Impossible de sauvegarder les états d’exemple dans le stockage local.", error);
-          exampleCacheWarning = "Les exemples sont disponibles, mais leur sauvegarde locale a échoué.";
-        }
-        return tokens;
-      })().catch((error) => {
+      exampleStatesPromise = createExampleStates(baseUrl).catch((error) => {
         exampleStatesPromise = undefined;
         throw error;
       });
@@ -808,13 +753,15 @@ async function initializeOrganizer() {
   });
 
   // Demande confirmation seulement si le changement effacerait un tirage existant.
-  function confirmChange(change) {
+  function confirmChange(change, apply = applyChange, description) {
     if (!generatedLinks) {
-      applyChange(change);
+      apply(change);
       return;
     }
 
-    pendingChange = change;
+    dialogDescription.textContent = description
+      || "Attention, modifier la liste effacera le tirage et les liens précédemment générés. Voulez-vous continuer ?";
+    pendingChange = () => apply(change);
     dialog.showModal();
   }
 
@@ -823,7 +770,7 @@ async function initializeOrganizer() {
     const change = pendingChange;
     pendingChange = null;
     dialog.close("confirm");
-    if (change) applyChange(change);
+    if (change) change();
   });
 
   // Annule la modification en attente et remet les champs à leur dernière valeur validée.
@@ -836,6 +783,59 @@ async function initializeOrganizer() {
     renderParticipants();
     renderResults();
     persistState();
+  }
+
+  async function renameEvent(nextName) {
+    const previousLinks = generatedLinks;
+    const previousName = eventInput.dataset.savedValue || "";
+    if (!previousLinks) {
+      applyChange(() => {
+        eventInput.dataset.savedValue = nextName;
+        eventInput.value = nextName;
+      });
+      return;
+    }
+
+    eventInput.disabled = true;
+    participantInput.disabled = true;
+    participantSubmitButton.disabled = true;
+    clearFormButton.disabled = true;
+    generateButton.disabled = true;
+    generateButton.setAttribute("aria-busy", "true");
+    participantList.querySelectorAll("input, select, button").forEach((control) => {
+      control.disabled = true;
+    });
+    showStatus("Mise à jour des liens avec le nouveau nom…");
+
+    try {
+      const renamedLinks = await renameDraw(nextName, previousLinks);
+      eventInput.dataset.savedValue = nextName;
+      eventInput.value = nextName;
+      generatedLinks = renamedLinks;
+      showStatus("Le nom de l’événement a changé. Les attributions précédentes sont conservées.");
+      if (!await persistState()) {
+        eventInput.dataset.savedValue = previousName;
+        eventInput.value = previousName;
+        generatedLinks = previousLinks;
+        renderResults();
+        return;
+      }
+      renderResults();
+    } catch (error) {
+      console.error("Impossible de mettre à jour les liens après le changement du nom.", error);
+      eventInput.value = eventInput.dataset.savedValue || "";
+      showStatus("Impossible de mettre à jour les liens avec le nouveau nom. Le tirage précédent est conservé.", "error");
+    } finally {
+      eventInput.disabled = false;
+      participantInput.disabled = false;
+      participantSubmitButton.disabled = false;
+      clearFormButton.disabled = false;
+      participantList.querySelectorAll("input, select, button").forEach((control) => {
+        control.disabled = false;
+      });
+      generateButton.removeAttribute("aria-busy");
+      updateGenerateButton();
+    }
   }
 
   cancelButton.addEventListener("click", cancelPendingChange);
@@ -923,10 +923,14 @@ async function initializeOrganizer() {
       return;
     }
 
-    confirmChange(() => {
-      eventInput.dataset.savedValue = nextName;
-      eventInput.value = nextName;
-    });
+    confirmChange(
+      () => {
+        eventInput.dataset.savedValue = nextName;
+        eventInput.value = nextName;
+      },
+      () => { void renameEvent(nextName); },
+      "Le nom de l’événement va changer. Les attributions resteront identiques, mais les liens des participants seront renouvelés. Voulez-vous continuer ?",
+    );
   });
 
   // Efface aussitôt l'erreur dès que la personne corrige sa saisie.
@@ -1112,12 +1116,13 @@ async function initializeOrganizer() {
     generateButton.setAttribute("aria-busy", "true");
 
     try {
-      const tokens = await getExampleStateTokens();
+      const states = await getExampleStates();
       const candidates = EXAMPLE_TEAMS.filter(({ name }) => `Exemple — ${name}` !== excludedEventName);
       const team = candidates[randomIndex(candidates.length)];
       const eventName = `Exemple — ${team.name}`;
-      const token = tokens[eventName];
-      const state = await decryptAdminState(token);
+      const state = states.find(({ eventName: stateEventName }) => stateEventName === eventName);
+      if (!state) throw new Error(`État d’exemple introuvable pour « ${eventName} ».`);
+      const token = await encryptAdminState(state);
       restoreState(state);
       participantList.querySelectorAll("input, select, button").forEach((control) => {
         control.disabled = true;
@@ -1145,7 +1150,7 @@ async function initializeOrganizer() {
       if (!await persistence) return;
 
       renderResults();
-      showStatus(exampleCacheWarning || "Le tirage d’exemple est prêt. Envoyez à chacun son lien personnel.");
+      showStatus("Le tirage d’exemple est prêt. Envoyez à chacun son lien personnel.");
       results.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
       console.error("Impossible de charger le tirage d’exemple.", error);

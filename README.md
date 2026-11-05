@@ -10,7 +10,7 @@ Les [spécifications fonctionnelles](./specs.md) décrivent en détail les règl
 
 Secret peut être déployé sur n'importe quel hébergement de fichiers statiques :
 
-1. Publiez les fichiers du projet à la racine du site ou d'un sous-répertoire : `index.html`, `secret.html`, `app.js` et `styles.css`.
+1. Publiez le contenu du dossier [`dist/`](./dist/) à la racine du site ou d'un sous-répertoire : `index.html`, `secret.html`, `app.js` et `styles.css`. Les autres fichiers du dépôt servent au développement et ne sont pas nécessaires à l'hébergement.
 2. Configurez l'hébergement pour servir `index.html` comme page d'accueil.
 3. Activez HTTPS, requis pour l'API Web Crypto et la copie dans le presse-papiers.
 4. Ouvrez l'adresse publiée et vérifiez qu'un tirage peut être créé et que les liens individuels ouvrent `secret.html`.
