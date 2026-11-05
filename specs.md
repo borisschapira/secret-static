@@ -29,13 +29,17 @@ L'application est statique et fonctionne entièrement dans le navigateur : aucun
 
 Après génération, toute modification confirmée de l'événement, des participants ou des attributions demande une confirmation. Si elle est confirmée, les liens précédemment générés sont supprimés et l'administration revient à l'étape de préparation. Une annulation conserve le tirage.
 
+Un clic sur « Générer les liens privés » lorsqu'un tirage existe demande confirmation avant de le remplacer par un nouveau tirage. Une annulation conserve le tirage et ses liens.
+
 ### Reprise de l'administration et historique
 
 - L'état administratif est chiffré dans le paramètre `state` de l'URL. Il comprend le nom de l'événement, les participants et leurs attributions, les saisies en cours et les liens déjà générés.
 - Les brouillons ne sont pas chiffrés à chaque caractère : l'état est enregistré lors des interactions prévues, notamment quand un champ perd le focus ou qu'un participant est ajouté.
-- Le dernier état est également conservé sous forme chiffrée dans le stockage local du navigateur. À l'ouverture de `index.html` sans paramètre `state`, si une sauvegarde existe, l'application propose de la rétablir ; l'utilisateur peut aussi commencer sans la restaurer.
+- Le dernier état est également conservé sous forme chiffrée dans le stockage local du navigateur. À l'ouverture de `index.html` sans paramètre `state`, si une sauvegarde existe, l'application propose de la rétablir ; si l'utilisateur choisit de commencer sans, l'URL de ce dernier état est ajoutée à l'historique du navigateur puis la sauvegarde locale est supprimée.
 - Chaque enregistrement ajoute une entrée à l'historique du navigateur. Les boutons précédent/suivant restaurent l'état correspondant et le rechargement restaure l'état de l'URL.
 - Après la génération, l'interface affiche l'URL d'administration complète et permet de la copier pour reprendre ultérieurement l'accès aux résultats.
+- Le bouton « Vider le formulaire » ajoute l'état courant à l'historique du navigateur, puis vide tous les champs et remplace l'entrée courante par l'état vide. Si un tirage a été généré, une confirmation prévient que ses liens seront perdus.
+- Quand le formulaire est vide, le bouton principal propose de visualiser un exemple. Au premier usage, l'application calcule et chiffre un tirage pour chacune des équipes, puis sauvegarde les états dans le stockage local ; les visualisations suivantes réutilisent ces mêmes états et liens. Elle choisit aléatoirement une équipe, préremplit l'événement et les participants ; dès qu'une saisie commence, le bouton reprend son libellé et son comportement habituels. Si l'état correspond à un exemple connu, y compris après restauration depuis son URL, le bouton propose d'en visualiser un autre ; après confirmation, une autre équipe est choisie au hasard.
 
 ## Écran participant (`secret.html`)
 
@@ -49,7 +53,7 @@ Après génération, toute modification confirmée de l'événement, des partici
 - Le vecteur d'initialisation est aléatoire et préfixé aux données chiffrées. Le résultat est encodé en Base64URL pour être transportable dans une URL.
 - Les clés sont intégrées au code JavaScript. Le chiffrement masque les informations dans les URL, mais ne constitue pas un contrôle d'accès : une personne qui inspecte l'application peut retrouver les clés. Les liens ne doivent donc pas être considérés comme une protection contre un utilisateur technique ou malveillant.
 - L'application ne dispose pas de backend et n'enregistre pas les tirages sur un serveur. Les URL contenant `state` ou `token` donnent accès à des données du tirage : elles doivent être conservées et partagées avec précaution.
-- Le stockage local ne contient que l'état chiffré. Il reste propre à ce navigateur et n'est pas une sauvegarde serveur ; supprimer les données du site l'efface.
+- Le stockage local ne contient que des états chiffrés. Il reste propre à ce navigateur et n'est pas une sauvegarde serveur ; supprimer les données du site l'efface.
 - Le déploiement doit fournir les pages en HTTPS afin que Web Crypto et les fonctions de presse-papiers soient disponibles dans un contexte sécurisé.
 
 ## Vérification

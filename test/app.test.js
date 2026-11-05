@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createDraw,
+  createExampleParticipants,
+  createExampleStates,
   decryptAssignment,
   decryptAdminState,
   encryptAdminState,
   IMPOSSIBLE_DRAW_ERROR,
+  isExampleState,
   validateParticipantName,
 } from "../app.js";
 
@@ -15,6 +18,69 @@ const participants = [
   { id: "3", name: "Sam", targetId: "" },
   { id: "4", name: "Noé", targetId: "" },
 ];
+
+test("creates an example from one of the supported pop-culture teams", () => {
+  const supportedTeams = [
+    ["Fred", "Daphné", "Véra", "Sammy", "Scooby-Doo"],
+    ["Buffy", "Willow", "Alex", "Giles", "Cordelia"],
+    ["Iron Man", "Captain America", "Thor", "Hulk", "Black Widow", "Hawkeye"],
+    ["Rachel", "Monica", "Phoebe", "Joey", "Chandler", "Ross"],
+    ["Frodon", "Sam", "Aragorn", "Legolas", "Gimli", "Gandalf"],
+    ["Leonardo", "Michelangelo", "Donatello", "Raphaël", "Splinter"],
+  ];
+
+  const example = createExampleParticipants();
+  const names = example.participants.map(({ name }) => name);
+
+  assert.match(example.eventName, /^Exemple — /u);
+  assert.ok(names.length >= 3);
+  assert.ok(supportedTeams.some((team) => team.length === names.length && team.every((name) => names.includes(name))));
+  assert.deepEqual(
+    example.participants.map(({ id }) => id),
+    names.map((_, index) => String(index + 1)),
+  );
+  assert.ok(example.participants.every(({ targetId }) => targetId === ""));
+});
+
+test("recognizes example states and can select a different team", () => {
+  const example = createExampleParticipants();
+  const state = {
+    eventName: example.eventName,
+    eventDraft: example.eventName,
+    participants: example.participants,
+  };
+
+  assert.equal(isExampleState(state), true);
+  assert.equal(isExampleState({ ...state, eventDraft: "Événement modifié" }), false);
+  assert.equal(isExampleState({ ...state, participants: participants.slice(0, 3) }), false);
+  assert.notEqual(createExampleParticipants(example.eventName).eventName, example.eventName);
+});
+
+test("precomputes and encrypts one reusable draw state for every example team", async () => {
+  const baseUrl = new URL("https://example.test/secret.html");
+  const snapshots = await createExampleStates(baseUrl);
+
+  assert.equal(snapshots.length, 6);
+  assert.equal(new Set(snapshots.map(({ eventName }) => eventName)).size, snapshots.length);
+
+  for (const { eventName, state: savedState, token } of snapshots) {
+    const state = await decryptAdminState(token);
+    assert.deepEqual(state, savedState);
+    assert.equal(isExampleState(state), true);
+    assert.equal(state.generatedLinks.length, state.participants.length);
+    assert.ok(state.generatedLinks.every(({ url }) => new URL(url).origin === baseUrl.origin));
+
+    const assignments = await Promise.all(state.generatedLinks.map(async ({ name, url }) => ({
+      name,
+      ...await decryptAssignment(new URL(url).searchParams.get("token")),
+    })));
+    assert.ok(assignments.every(({ eventName: assignmentEvent }) => assignmentEvent === eventName));
+    assert.deepEqual(
+      new Set(assignments.map(({ giver }) => giver)),
+      new Set(state.participants.map(({ name }) => name)),
+    );
+  }
+});
 
 test("creates a complete draw with one recipient per participant and no self-gifts", async () => {
   const links = await createDraw(

@@ -2,6 +2,7 @@ const AES_KEY = "Santa2026SecretKeyForBrowserOnly";
 const ADMIN_STATE_KEY = "SecretAdminStateKeyForBrowser26!";
 const ADMIN_STATE_PARAM = "state";
 const LOCAL_ADMIN_STATE_KEY = "secret-admin-state-v2";
+const LOCAL_EXAMPLE_STATES_KEY = "secret-example-states-v1";
 const ADMIN_STATE_VERSION = 2;
 const MAX_PARTICIPANT_NAME_LENGTH = 100;
 const SEPARATOR = "§";
@@ -9,6 +10,33 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const DUPLICATE_NAME_ERROR = "Ce nom est déjà utilisé. Veuillez ajouter une initiale ou utiliser un pseudonyme.";
 export const IMPOSSIBLE_DRAW_ERROR = "Tirage impossible. Vérifiez les attributions manuelles et évitez les échanges réciproques.";
+
+const EXAMPLE_TEAMS = [
+  {
+    name: "Scooby-Doo",
+    participants: ["Fred", "Daphné", "Véra", "Sammy", "Scooby-Doo"],
+  },
+  {
+    name: "Buffy contre les vampires",
+    participants: ["Buffy", "Willow", "Alex", "Giles", "Cordelia"],
+  },
+  {
+    name: "Avengers",
+    participants: ["Iron Man", "Captain America", "Thor", "Hulk", "Black Widow", "Hawkeye"],
+  },
+  {
+    name: "Friends",
+    participants: ["Rachel", "Monica", "Phoebe", "Joey", "Chandler", "Ross"],
+  },
+  {
+    name: "Le Seigneur des anneaux",
+    participants: ["Frodon", "Sam", "Aragorn", "Legolas", "Gimli", "Gandalf"],
+  },
+  {
+    name: "Les Tortues Ninja",
+    participants: ["Leonardo", "Michelangelo", "Donatello", "Raphaël", "Splinter"],
+  },
+];
 
 // Tire un entier au hasard sans biais, pour que chaque valeur ait sa chance.
 function randomIndex(max) {
@@ -21,6 +49,36 @@ function randomIndex(max) {
   } while (value[0] >= limit);
 
   return value[0] % max;
+}
+
+export function createExampleParticipants(excludedEventName = "") {
+  const teams = EXAMPLE_TEAMS.filter(({ name }) => `Exemple — ${name}` !== excludedEventName);
+  const team = teams[randomIndex(teams.length)];
+  return {
+    eventName: `Exemple — ${team.name}`,
+    participants: team.participants.map((name, index) => ({
+      id: String(index + 1),
+      name,
+      targetId: "",
+    })),
+  };
+}
+
+export function isExampleState(state) {
+  if (
+    !state
+    || typeof state.eventName !== "string"
+    || state.eventDraft !== state.eventName
+    || !Array.isArray(state.participants)
+  ) {
+    return false;
+  }
+
+  return EXAMPLE_TEAMS.some((team) => (
+    state.eventName === `Exemple — ${team.name}`
+    && state.participants.length === team.participants.length
+    && state.participants.every(({ name }, index) => name === team.participants[index])
+  ));
 }
 
 // Mélange une copie de la liste : les données de départ restent intactes.
@@ -332,6 +390,31 @@ export async function createDraw(eventName, participants, baseUrl) {
   }));
 }
 
+export async function createExampleStates(baseUrl) {
+  return Promise.all(EXAMPLE_TEAMS.map(async ({ name, participants: names }) => {
+    const eventName = `Exemple — ${name}`;
+    const participants = names.map((participantName, index) => ({
+      id: String(index + 1),
+      name: participantName,
+      targetId: "",
+    }));
+    const generatedLinks = await createDraw(eventName, participants, baseUrl);
+    if (!generatedLinks) throw new Error(`Impossible de créer le tirage d’exemple « ${name} ».`);
+
+    const state = {
+      eventName,
+      eventDraft: eventName,
+      participantDraft: "",
+      participants,
+      participantNameDrafts: {},
+      targetDrafts: {},
+      generatedLinks,
+    };
+
+    return { eventName, state, token: await encryptAdminState(state) };
+  }));
+}
+
 // Branche l'interface d'administration et restaure son éventuel état depuis l'URL.
 async function initializeOrganizer() {
   const eventInput = document.querySelector("#event-name");
@@ -343,7 +426,9 @@ async function initializeOrganizer() {
   const participantList = document.querySelector("#participant-list");
   const participantCount = document.querySelector("#participant-count");
   const emptyList = document.querySelector("#empty-list");
+  const clearFormButton = document.querySelector("#clear-form");
   const generateButton = document.querySelector("#generate-button");
+  const generateButtonLabel = document.querySelector("#generate-label");
   const organizerStatus = document.querySelector("#organizer-status");
   const results = document.querySelector("#results");
   const resultList = document.querySelector("#result-list");
@@ -351,6 +436,13 @@ async function initializeOrganizer() {
   const confirmButton = document.querySelector("#confirm-change");
   const cancelButton = document.querySelector("#cancel-change");
   const restoreDialog = document.querySelector("#restore-dialog");
+  const clearFormDialog = document.querySelector("#clear-form-dialog");
+  const cancelClearFormButton = document.querySelector("#cancel-clear-form");
+  const confirmClearFormButton = document.querySelector("#confirm-clear-form");
+  const regenerateDialog = document.querySelector("#regenerate-dialog");
+  const regenerateDescription = document.querySelector("#regenerate-description");
+  const cancelRegenerateButton = document.querySelector("#cancel-regenerate");
+  const confirmRegenerateButton = document.querySelector("#confirm-regenerate");
   const restoreSavedStateButton = document.querySelector("#restore-saved-state");
   const startFreshButton = document.querySelector("#start-fresh");
   const initialStateToken = new URLSearchParams(window.location.search).get(ADMIN_STATE_PARAM);
@@ -362,12 +454,18 @@ async function initializeOrganizer() {
   let nextId = 1;
   let pendingChange = null;
   let savedStateToRestore = null;
+  let savedStateToken = null;
   let historyQueue = Promise.resolve();
   let historyGeneration = 0;
+  let organizerReady = false;
+  let regenerateExample = false;
+  let exampleStatesPromise;
+  let exampleCacheWarning = "";
 
   eventInput.disabled = true;
   participantInput.disabled = true;
   participantSubmitButton.disabled = true;
+  clearFormButton.disabled = true;
 
   // Affiche un retour dans la zone de statut du formulaire.
   function showStatus(message, kind = "info") {
@@ -412,6 +510,59 @@ async function initializeOrganizer() {
       console.error("Impossible d’enregistrer l’état chiffré dans le stockage local.", error);
       showStatus("L’état reste disponible dans l’URL, mais sa sauvegarde locale a échoué.", "error");
     }
+  }
+
+  async function getExampleStateTokens() {
+    if (!exampleStatesPromise) {
+      const baseUrl = new URL("secret.html", document.baseURI);
+      exampleStatesPromise = (async () => {
+        try {
+          const serialized = window.localStorage.getItem(LOCAL_EXAMPLE_STATES_KEY);
+          if (serialized) {
+            const cache = JSON.parse(serialized);
+            if (
+              cache.version === 1
+              && cache.baseUrl === baseUrl.href
+              && cache.tokens
+              && typeof cache.tokens === "object"
+              && !Array.isArray(cache.tokens)
+            ) {
+              const isComplete = await Promise.all(EXAMPLE_TEAMS.map(async ({ name, participants }) => {
+                const eventName = `Exemple — ${name}`;
+                const token = cache.tokens[eventName];
+                if (typeof token !== "string") return false;
+                const state = await decryptAdminState(token);
+                return isExampleState(state)
+                  && state.generatedLinks?.length === participants.length
+                  && state.generatedLinks.every(({ name: participantName }) => participants.includes(participantName));
+              }));
+              if (isComplete.every(Boolean)) return cache.tokens;
+            }
+          }
+        } catch (error) {
+          console.error("Impossible de lire ou vérifier les états d’exemple sauvegardés.", error);
+        }
+
+        const snapshots = await createExampleStates(baseUrl);
+        const tokens = Object.fromEntries(snapshots.map(({ eventName, token }) => [eventName, token]));
+        try {
+          window.localStorage.setItem(LOCAL_EXAMPLE_STATES_KEY, JSON.stringify({
+            version: 1,
+            baseUrl: baseUrl.href,
+            tokens,
+          }));
+        } catch (error) {
+          console.error("Impossible de sauvegarder les états d’exemple dans le stockage local.", error);
+          exampleCacheWarning = "Les exemples sont disponibles, mais leur sauvegarde locale a échoué.";
+        }
+        return tokens;
+      })().catch((error) => {
+        exampleStatesPromise = undefined;
+        throw error;
+      });
+    }
+
+    return exampleStatesPromise;
   }
 
   // Enregistre l'état dans l'historique après chiffrement, sans laisser les écritures se croiser.
@@ -493,7 +644,20 @@ async function initializeOrganizer() {
 
   // Le tirage n'est lançable qu'à partir de trois participants.
   function updateGenerateButton() {
-    generateButton.disabled = participants.length < 3;
+    const isFormEmpty = participants.length === 0
+      && !eventInput.value.trim()
+      && !participantInput.value.trim();
+    const isCurrentExample = isExampleState({
+      eventName: eventInput.value.trim(),
+      eventDraft: eventInput.value.trim(),
+      participants,
+    });
+    generateButtonLabel.textContent = isFormEmpty
+      ? "Visualiser un exemple"
+      : isCurrentExample
+        ? "Visualiser un autre exemple"
+        : "Générer les liens privés";
+    generateButton.disabled = !organizerReady || (!isFormEmpty && participants.length < 3);
   }
 
   // Reconstruit les champs des participants et leurs choix d'attribution.
@@ -570,7 +734,7 @@ async function initializeOrganizer() {
     results.hidden = !generatedLinks;
     resultList.replaceChildren();
     if (!generatedLinks) return;
-    document.querySelector("#admin-link").value = window.location.href;
+    updateAdminLink();
 
     for (const result of generatedLinks) {
       const item = document.createElement("li");
@@ -588,6 +752,10 @@ async function initializeOrganizer() {
     }
   }
 
+  function updateAdminLink(url = window.location.href) {
+    document.querySelector("#admin-link").value = url;
+  }
+
   // Applique une modification et invalide les liens créés précédemment.
   function applyChange(change) {
     generatedLinks = null;
@@ -597,6 +765,47 @@ async function initializeOrganizer() {
     renderResults();
     persistState();
   }
+
+  async function clearForm() {
+    clearFormButton.disabled = true;
+    try {
+      if (!await persistState()) return;
+
+      eventInput.value = "";
+      eventInput.dataset.savedValue = "";
+      participantInput.value = "";
+      participants = [];
+      participantNameDrafts.clear();
+      targetDrafts.clear();
+      generatedLinks = null;
+      nextId = 1;
+      eventError.textContent = "";
+      eventInput.removeAttribute("aria-invalid");
+      participantError.textContent = "";
+      participantInput.removeAttribute("aria-invalid");
+      showStatus("");
+      renderParticipants();
+      renderResults();
+      await persistState(true);
+    } finally {
+      clearFormButton.disabled = false;
+    }
+  }
+
+  clearFormButton.addEventListener("click", () => {
+    if (generatedLinks) {
+      clearFormDialog.showModal();
+      return;
+    }
+
+    void clearForm();
+  });
+
+  cancelClearFormButton.addEventListener("click", () => clearFormDialog.close("cancel"));
+  confirmClearFormButton.addEventListener("click", () => {
+    clearFormDialog.close("confirm");
+    void clearForm();
+  });
 
   // Demande confirmation seulement si le changement effacerait un tirage existant.
   function confirmChange(change) {
@@ -647,7 +856,32 @@ async function initializeOrganizer() {
     if (restoreDialog.open) restoreDialog.close("fresh");
   }
 
-  startFreshButton.addEventListener("click", dismissRestorePrompt);
+  startFreshButton.addEventListener("click", () => {
+    dismissRestorePrompt();
+    if (!savedStateToken) return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.set(ADMIN_STATE_PARAM, savedStateToken);
+    try {
+      window.history.pushState(
+        { secretAdminState: true },
+        "",
+        `${url.pathname}${url.search}${url.hash}`,
+      );
+    } catch (error) {
+      console.error("Impossible d’ajouter le dernier événement à l’historique du navigateur.", error);
+      showStatus("Impossible de conserver le dernier événement dans l’historique du navigateur.", "error");
+      return;
+    }
+
+    savedStateToken = null;
+    try {
+      window.localStorage.removeItem(LOCAL_ADMIN_STATE_KEY);
+    } catch (error) {
+      console.error("Impossible de supprimer l’état sauvegardé dans le stockage local.", error);
+      showStatus("Le dernier événement est conservé dans l’historique, mais sa sauvegarde locale n’a pas pu être supprimée.", "error");
+    }
+  });
   restoreDialog.addEventListener("cancel", (event) => {
     event.preventDefault();
     dismissRestorePrompt();
@@ -699,6 +933,7 @@ async function initializeOrganizer() {
   eventInput.addEventListener("input", () => {
     eventError.textContent = "";
     eventInput.removeAttribute("aria-invalid");
+    updateGenerateButton();
   });
 
   // Vérifie le nom, puis ajoute le participant si la saisie est valide.
@@ -726,6 +961,7 @@ async function initializeOrganizer() {
   participantInput.addEventListener("input", () => {
     participantError.textContent = "";
     participantInput.removeAttribute("aria-invalid");
+    updateGenerateButton();
   });
 
   // Garde le brouillon de participant, sauf si l'ajout est en cours.
@@ -806,7 +1042,7 @@ async function initializeOrganizer() {
   });
 
   // Vérifie les entrées, génère les liens, puis sauvegarde l'état complet du tirage.
-  generateButton.addEventListener("click", async () => {
+  async function generateDraw() {
     eventInput.value = eventInput.value.trim();
     if (!eventInput.value) {
       eventError.textContent = "Saisissez le nom de l’événement avant de générer les liens.";
@@ -862,6 +1098,124 @@ async function initializeOrganizer() {
       generateButton.removeAttribute("aria-busy");
       updateGenerateButton();
     }
+  }
+
+  async function loadExample(excludedEventName = "") {
+    eventInput.disabled = true;
+    participantInput.disabled = true;
+    participantSubmitButton.disabled = true;
+    participantList.querySelectorAll("input, select, button").forEach((control) => {
+      control.disabled = true;
+    });
+    clearFormButton.disabled = true;
+    generateButton.disabled = true;
+    generateButton.setAttribute("aria-busy", "true");
+
+    try {
+      const tokens = await getExampleStateTokens();
+      const candidates = EXAMPLE_TEAMS.filter(({ name }) => `Exemple — ${name}` !== excludedEventName);
+      const team = candidates[randomIndex(candidates.length)];
+      const eventName = `Exemple — ${team.name}`;
+      const token = tokens[eventName];
+      const state = await decryptAdminState(token);
+      restoreState(state);
+      participantList.querySelectorAll("input, select, button").forEach((control) => {
+        control.disabled = true;
+      });
+
+      const generation = ++historyGeneration;
+      const persistence = historyQueue.then(() => {
+        if (generation !== historyGeneration) return false;
+        const url = new URL(window.location.href);
+        url.searchParams.set(ADMIN_STATE_PARAM, token);
+        window.history.pushState(
+          { secretAdminState: true },
+          "",
+          `${url.pathname}${url.search}${url.hash}`,
+        );
+        updateAdminLink(url.href);
+        saveLocalState(token, state);
+        return true;
+      }).catch((error) => {
+        console.error("Impossible d’enregistrer l’état d’exemple dans l’URL.", error);
+        showStatus("L’exemple est prêt, mais son état n’a pas pu être enregistré dans l’URL.", "error");
+        return false;
+      });
+      historyQueue = persistence;
+      if (!await persistence) return;
+
+      renderResults();
+      showStatus(exampleCacheWarning || "Le tirage d’exemple est prêt. Envoyez à chacun son lien personnel.");
+      results.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (error) {
+      console.error("Impossible de charger le tirage d’exemple.", error);
+      showStatus("Impossible de charger cet exemple. Réessayez.", "error");
+    } finally {
+      eventInput.disabled = false;
+      participantInput.disabled = false;
+      participantSubmitButton.disabled = false;
+      participantList.querySelectorAll("input, select, button").forEach((control) => {
+        control.disabled = false;
+      });
+      clearFormButton.disabled = false;
+      generateButton.removeAttribute("aria-busy");
+      updateGenerateButton();
+    }
+  }
+
+  function openRegenerateDialog(forExample) {
+    regenerateExample = forExample;
+    regenerateDescription.textContent = forExample
+      ? "Un autre exemple choisi au hasard remplacera le tirage actuel et ses liens. Voulez-vous continuer ?"
+      : "Un nouveau tirage va modifier le tirage actuel et remplacer les liens générés. Voulez-vous continuer ?";
+    confirmRegenerateButton.textContent = forExample
+      ? "Visualiser un autre exemple"
+      : "Générer un nouveau tirage";
+    regenerateDialog.showModal();
+  }
+
+  generateButton.addEventListener("click", () => {
+    const currentExample = isExampleState({
+      eventName: eventInput.value.trim(),
+      eventDraft: eventInput.value.trim(),
+      participants,
+    });
+    if (generatedLinks) {
+      openRegenerateDialog(currentExample);
+      return;
+    }
+
+    if (currentExample) {
+      void loadExample(eventInput.value.trim());
+      return;
+    }
+
+    if (
+      participants.length === 0
+      && !eventInput.value.trim()
+      && !participantInput.value.trim()
+    ) {
+      void loadExample();
+      return;
+    }
+
+    void generateDraw();
+  });
+
+  cancelRegenerateButton.addEventListener("click", () => {
+    regenerateExample = false;
+    regenerateDialog.close("cancel");
+  });
+  confirmRegenerateButton.addEventListener("click", () => {
+    const shouldLoadExample = regenerateExample;
+    const previousEventName = eventInput.value.trim();
+    regenerateExample = false;
+    regenerateDialog.close("confirm");
+    if (shouldLoadExample) {
+      void loadExample(previousEventName);
+    } else {
+      void generateDraw();
+    }
   });
 
   // Copie le lien personnel correspondant au bouton choisi.
@@ -887,6 +1241,7 @@ async function initializeOrganizer() {
     const adminLink = document.querySelector("#admin-link");
     const adminLinkStatus = document.querySelector("#admin-link-status");
     try {
+      updateAdminLink();
       await navigator.clipboard.writeText(adminLink.value);
       adminLinkStatus.textContent = "Le lien d’administration a été copié. Conservez-le pour retrouver ce tirage.";
       delete adminLinkStatus.dataset.kind;
@@ -913,9 +1268,12 @@ async function initializeOrganizer() {
     console.error("Impossible de déchiffrer l’état initial du formulaire.", error);
     showStatus("L’état de cette URL est invalide ou corrompu. Les saisies n’ont pas pu être restaurées.", "error");
   } finally {
+    organizerReady = true;
     eventInput.disabled = false;
     participantInput.disabled = false;
     participantForm.querySelector('button[type="submit"]').disabled = false;
+    clearFormButton.disabled = false;
+    updateGenerateButton();
   }
 
   if (initialStateToken && initialStateRestored) {
@@ -932,6 +1290,7 @@ async function initializeOrganizer() {
     if (savedToken) {
       try {
         savedStateToRestore = await decryptAdminState(savedToken);
+        savedStateToken = savedToken;
         restoreDialog.showModal();
       } catch (error) {
         console.error("Impossible de déchiffrer l’état sauvegardé dans le stockage local.", error);

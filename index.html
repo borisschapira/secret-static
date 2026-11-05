@@ -66,9 +66,12 @@
 
         <div class="card-footer">
           <p class="field-help"><span aria-hidden="true">↗</span> Vous pouvez fixer une attribution pour certaines personnes ; les autres seront tirées au sort.</p>
-          <button id="generate-button" class="button button-primary" type="button" disabled>
-            Générer les liens privés <span aria-hidden="true">→</span>
-          </button>
+          <div class="card-footer-actions">
+            <button id="clear-form" class="button button-secondary" type="button">Vider le formulaire</button>
+            <button id="generate-button" class="button button-primary" type="button" disabled>
+              <span id="generate-label">Générer les liens privés</span> <span aria-hidden="true">→</span>
+            </button>
+          </div>
           <p id="organizer-status" class="status-message" role="status" aria-live="polite"></p>
         </div>
       </section>
@@ -95,7 +98,8 @@
       </section>
 
       <footer class="page-footer">
-        <span>Fait avec soin pour vos échanges <span aria-hidden="true">✳</span></span>
+        <span>Version 1.1.0</span>
+        <a href="https://github.com/borisschapira/secret-static">Contribuer au code ou signaler un bug</a>
         <span>Simple, privé, toute l’année.</span>
       </footer>
     </main>
@@ -108,6 +112,28 @@
       <div class="dialog-actions">
         <button id="cancel-change" class="button button-secondary" type="button">Annuler</button>
         <button id="confirm-change" class="button button-primary" type="button">Confirmer</button>
+      </div>
+    </dialog>
+
+    <dialog id="clear-form-dialog" class="confirm-dialog" aria-labelledby="clear-form-heading" aria-describedby="clear-form-description">
+      <div class="dialog-icon" aria-hidden="true">!</div>
+      <p class="eyebrow">Avant de continuer</p>
+      <h2 id="clear-form-heading">Vider le formulaire ?</h2>
+      <p id="clear-form-description">Les liens générés seront perdus. Voulez-vous vraiment vider le formulaire ?</p>
+      <div class="dialog-actions">
+        <button id="cancel-clear-form" class="button button-secondary" type="button" autofocus>Annuler</button>
+        <button id="confirm-clear-form" class="button button-primary" type="button">Vider le formulaire</button>
+      </div>
+    </dialog>
+
+    <dialog id="regenerate-dialog" class="confirm-dialog" aria-labelledby="regenerate-heading" aria-describedby="regenerate-description">
+      <div class="dialog-icon" aria-hidden="true">!</div>
+      <p class="eyebrow">Avant de continuer</p>
+      <h2 id="regenerate-heading">Modifier le tirage ?</h2>
+      <p id="regenerate-description">Un nouveau tirage va modifier le tirage actuel et remplacer les liens générés. Voulez-vous continuer ?</p>
+      <div class="dialog-actions">
+        <button id="cancel-regenerate" class="button button-secondary" type="button" autofocus>Annuler</button>
+        <button id="confirm-regenerate" class="button button-primary" type="button">Générer un nouveau tirage</button>
       </div>
     </dialog>
 
