@@ -2,6 +2,7 @@ const AES_KEY = "Santa2026SecretKeyForBrowserOnly";
 const ADMIN_STATE_KEY = "SecretAdminStateKeyForBrowser26!";
 const ADMIN_STATE_PARAM = "state";
 const LOCAL_ADMIN_STATE_KEY = "secret-admin-state-v2";
+const EXAMPLE_INDEX_SESSION_KEY = "secret-example-index-v1";
 const ADMIN_STATE_VERSION = 2;
 const MAX_PARTICIPANT_NAME_LENGTH = 100;
 const SEPARATOR = "§";
@@ -48,6 +49,53 @@ function randomIndex(max) {
   } while (value[0] >= limit);
 
   return value[0] % max;
+}
+
+export function nextExampleIndex(storage, chooseRandom = randomIndex) {
+  const storedIndex = storage.getItem(EXAMPLE_INDEX_SESSION_KEY);
+  const previousIndex = Number(storedIndex);
+  const hasValidIndex = storedIndex !== null
+    && /^(0|[1-9]\d*)$/u.test(storedIndex)
+    && Number.isInteger(previousIndex)
+    && previousIndex >= 0
+    && previousIndex < EXAMPLE_TEAMS.length;
+  const index = hasValidIndex
+    ? (previousIndex + 1) % EXAMPLE_TEAMS.length
+    : chooseRandom(EXAMPLE_TEAMS.length);
+
+  storage.setItem(EXAMPLE_INDEX_SESSION_KEY, String(index));
+  return index;
+}
+
+export function isOrganizerFormEmpty(participants, eventDraft, participantDraft) {
+  return participants.length === 0 && !eventDraft.trim() && !participantDraft.trim();
+}
+
+export function shouldDisableClearFormButton({
+  organizerReady,
+  participants,
+  eventDraft,
+  participantDraft,
+}) {
+  return !organizerReady || isOrganizerFormEmpty(participants, eventDraft, participantDraft);
+}
+
+export function showClearFormConfirmation(
+  dialog,
+  description,
+  confirmButton,
+  confirmLabel,
+  confirmIcon,
+  hasGeneratedLinks,
+) {
+  description.textContent = hasGeneratedLinks
+    ? "Les liens générés seront perdus et les données du formulaire seront effacées. Voulez-vous vraiment continuer ?"
+    : "Les données saisies dans le formulaire seront effacées. Voulez-vous vraiment nettoyer le formulaire ?";
+  confirmLabel.textContent = hasGeneratedLinks ? "Supprimer mon évènement" : "Nettoyer le formulaire";
+  confirmButton.classList.toggle("button-primary", !hasGeneratedLinks);
+  confirmButton.classList.toggle("button-danger", hasGeneratedLinks);
+  confirmIcon.setAttribute("href", `icons.svg#${hasGeneratedLinks ? "delete" : "broom-sparkles"}`);
+  dialog.showModal();
 }
 
 export function isExampleState(state) {
@@ -376,29 +424,25 @@ export async function renameDraw(eventName, links) {
   }));
 }
 
-export async function createExampleStates(baseUrl) {
-  return Promise.all(EXAMPLE_TEAMS.map(async ({ name, participants: names }) => {
+export function createExampleStates() {
+  return EXAMPLE_TEAMS.map(({ name, participants: names }) => {
     const eventName = `Exemple — ${name}`;
     const participants = names.map((participantName, index) => ({
       id: String(index + 1),
       name: participantName,
       targetId: "",
     }));
-    const generatedLinks = await createDraw(eventName, participants, baseUrl);
-    if (!generatedLinks) throw new Error(`Impossible de créer le tirage d’exemple « ${name} ».`);
 
-    const state = {
+    return {
       eventName,
       eventDraft: eventName,
       participantDraft: "",
       participants,
       participantNameDrafts: {},
       targetDrafts: {},
-      generatedLinks,
+      generatedLinks: null,
     };
-
-    return state;
-  }));
+  });
 }
 
 // Branche l'interface d'administration et restaure son éventuel état depuis l'URL.
@@ -415,6 +459,7 @@ async function initializeOrganizer() {
   const clearFormButton = document.querySelector("#clear-form");
   const generateButton = document.querySelector("#generate-button");
   const generateButtonLabel = document.querySelector("#generate-label");
+  const resultsSkipLink = document.querySelector("#results-skip-link");
   const organizerStatus = document.querySelector("#organizer-status");
   const results = document.querySelector("#results");
   const resultList = document.querySelector("#result-list");
@@ -424,8 +469,11 @@ async function initializeOrganizer() {
   const cancelButton = document.querySelector("#cancel-change");
   const restoreDialog = document.querySelector("#restore-dialog");
   const clearFormDialog = document.querySelector("#clear-form-dialog");
+  const clearFormDescription = document.querySelector("#clear-form-description");
   const cancelClearFormButton = document.querySelector("#cancel-clear-form");
   const confirmClearFormButton = document.querySelector("#confirm-clear-form");
+  const confirmClearFormLabel = document.querySelector("#confirm-clear-form-label");
+  const confirmClearFormIcon = confirmClearFormButton.querySelector("use");
   const regenerateDialog = document.querySelector("#regenerate-dialog");
   const regenerateDescription = document.querySelector("#regenerate-description");
   const cancelRegenerateButton = document.querySelector("#cancel-regenerate");
@@ -447,7 +495,6 @@ async function initializeOrganizer() {
   let historyGeneration = 0;
   let organizerReady = false;
   let regenerateExample = false;
-  let exampleStatesPromise;
 
   eventInput.disabled = true;
   participantInput.disabled = true;
@@ -497,18 +544,6 @@ async function initializeOrganizer() {
       console.error("Impossible d’enregistrer l’état chiffré dans le stockage local.", error);
       showStatus("L’état reste disponible dans l’URL, mais sa sauvegarde locale a échoué.", "error");
     }
-  }
-
-  async function getExampleStates() {
-    if (!exampleStatesPromise) {
-      const baseUrl = new URL("secret.html", document.baseURI);
-      exampleStatesPromise = createExampleStates(baseUrl).catch((error) => {
-        exampleStatesPromise = undefined;
-        throw error;
-      });
-    }
-
-    return exampleStatesPromise;
   }
 
   // Enregistre l'état dans l'historique après chiffrement, sans laisser les écritures se croiser.
@@ -590,20 +625,21 @@ async function initializeOrganizer() {
 
   // Le tirage n'est lançable qu'à partir de trois participants.
   function updateGenerateButton() {
-    const isFormEmpty = participants.length === 0
-      && !eventInput.value.trim()
-      && !participantInput.value.trim();
-    const isCurrentExample = isExampleState({
-      eventName: eventInput.value.trim(),
-      eventDraft: eventInput.value.trim(),
+    const isFormEmpty = isOrganizerFormEmpty(
       participants,
-    });
+      eventInput.value,
+      participantInput.value,
+    );
     generateButtonLabel.textContent = isFormEmpty
       ? "Visualiser un exemple"
-      : isCurrentExample
-        ? "Visualiser un autre exemple"
-        : "Générer les liens privés";
+      : "Générer les liens privés";
     generateButton.disabled = !organizerReady || (!isFormEmpty && participants.length < 3);
+    clearFormButton.disabled = shouldDisableClearFormButton({
+      organizerReady,
+      participants,
+      eventDraft: eventInput.value,
+      participantDraft: participantInput.value,
+    });
   }
 
   // Reconstruit les champs des participants et leurs choix d'attribution.
@@ -680,6 +716,7 @@ async function initializeOrganizer() {
   // Affiche les liens personnels et l'URL qui permet de reprendre l'administration.
   function renderResults() {
     results.hidden = !generatedLinks;
+    resultsSkipLink.hidden = !generatedLinks;
     resultList.replaceChildren();
     if (!generatedLinks) return;
     updateAdminLink();
@@ -695,6 +732,9 @@ async function initializeOrganizer() {
       copyButton.type = "button";
       copyButton.dataset.url = result.url;
       copyButton.dataset.copyLabel = "Copier le lien";
+      copyButton.dataset.accessibleCopyLabel = `Copier le lien pour ${result.name}`;
+      copyButton.dataset.accessibleCopiedLabel = `Lien pour ${result.name} copié`;
+      copyButton.setAttribute("aria-label", copyButton.dataset.accessibleCopyLabel);
       copyButton.append(createClipboardIcon());
       const copyLabel = document.createElement("span");
       copyLabel.className = "copy-button-label";
@@ -724,6 +764,10 @@ async function initializeOrganizer() {
 
   function setCopyButtonState(button, copied) {
     button.querySelector(".copy-button-label").textContent = copied ? "Lien copié" : button.dataset.copyLabel;
+    const accessibleLabel = copied
+      ? button.dataset.accessibleCopiedLabel
+      : button.dataset.accessibleCopyLabel;
+    if (accessibleLabel) button.setAttribute("aria-label", accessibleLabel);
     button.querySelector("svg use").setAttribute("href", `icons.svg#${copied ? "check" : "clipboard"}`);
   }
 
@@ -763,17 +807,19 @@ async function initializeOrganizer() {
       renderResults();
       await persistState(true);
     } finally {
-      clearFormButton.disabled = false;
+      updateGenerateButton();
     }
   }
 
   clearFormButton.addEventListener("click", () => {
-    if (generatedLinks) {
-      clearFormDialog.showModal();
-      return;
-    }
-
-    void clearForm();
+    showClearFormConfirmation(
+      clearFormDialog,
+      clearFormDescription,
+      confirmClearFormButton,
+      confirmClearFormLabel,
+      confirmClearFormIcon,
+      Boolean(generatedLinks),
+    );
   });
 
   cancelClearFormButton.addEventListener("click", () => clearFormDialog.close("cancel"));
@@ -988,6 +1034,8 @@ async function initializeOrganizer() {
       participantInput.value = "";
       participantError.textContent = "";
       participantInput.removeAttribute("aria-invalid");
+      const announcement = `${name} a été ajouté. La liste compte ${participants.length} participant${participants.length > 1 ? "s" : ""}.`;
+      showStatus(announcement);
     });
   });
 
@@ -1134,7 +1182,7 @@ async function initializeOrganizer() {
     }
   }
 
-  async function loadExample(excludedEventName = "") {
+  async function loadExample() {
     eventInput.disabled = true;
     participantInput.disabled = true;
     participantSubmitButton.disabled = true;
@@ -1146,12 +1194,21 @@ async function initializeOrganizer() {
     generateButton.setAttribute("aria-busy", "true");
 
     try {
-      const states = await getExampleStates();
-      const candidates = EXAMPLE_TEAMS.filter(({ name }) => `Exemple — ${name}` !== excludedEventName);
-      const team = candidates[randomIndex(candidates.length)];
+      let teamIndex;
+      try {
+        teamIndex = nextExampleIndex(window.sessionStorage);
+      } catch (error) {
+        console.error("Impossible de mémoriser la progression des exemples dans cette session.", error);
+        showStatus("Impossible de mémoriser la progression des exemples dans cette session.", "error");
+        return;
+      }
+
+      const states = createExampleStates();
+      const team = EXAMPLE_TEAMS[teamIndex];
       const eventName = `Exemple — ${team.name}`;
-      const state = states.find(({ eventName: stateEventName }) => stateEventName === eventName);
-      if (!state) throw new Error(`État d’exemple introuvable pour « ${eventName} ».`);
+      const exampleState = states.find(({ eventName: stateEventName }) => stateEventName === eventName);
+      if (!exampleState) throw new Error(`État d’exemple introuvable pour « ${eventName} ».`);
+      const state = exampleState;
       const token = await encryptAdminState(state);
       restoreState(state);
       participantList.querySelectorAll("input, select, button").forEach((control) => {
@@ -1179,9 +1236,7 @@ async function initializeOrganizer() {
       historyQueue = persistence;
       if (!await persistence) return;
 
-      renderResults();
-      showStatus("Le tirage d’exemple est prêt. Envoyez à chacun son lien personnel.");
-      results.scrollIntoView({ behavior: "smooth", block: "start" });
+      showStatus("Exemple chargé. Vous pouvez modifier les participants ou générer les liens privés.");
     } catch (error) {
       console.error("Impossible de charger le tirage d’exemple.", error);
       showStatus("Impossible de charger cet exemple. Réessayez.", "error");
@@ -1201,7 +1256,7 @@ async function initializeOrganizer() {
   function openRegenerateDialog(forExample) {
     regenerateExample = forExample;
     regenerateDescription.textContent = forExample
-      ? "Un autre exemple choisi au hasard remplacera le tirage actuel et ses liens. Voulez-vous continuer ?"
+      ? "L’exemple suivant remplacera le tirage actuel et ses liens. Voulez-vous continuer ?"
       : "Un nouveau tirage va modifier le tirage actuel et remplacer les liens générés. Voulez-vous continuer ?";
     confirmRegenerateLabel.textContent = forExample
       ? "Visualiser un autre exemple"
@@ -1210,18 +1265,13 @@ async function initializeOrganizer() {
   }
 
   generateButton.addEventListener("click", () => {
-    const currentExample = isExampleState({
-      eventName: eventInput.value.trim(),
-      eventDraft: eventInput.value.trim(),
-      participants,
-    });
     if (generatedLinks) {
+      const currentExample = isExampleState({
+        eventName: eventInput.value.trim(),
+        eventDraft: eventInput.value.trim(),
+        participants,
+      });
       openRegenerateDialog(currentExample);
-      return;
-    }
-
-    if (currentExample) {
-      void loadExample(eventInput.value.trim());
       return;
     }
 
@@ -1243,11 +1293,10 @@ async function initializeOrganizer() {
   });
   confirmRegenerateButton.addEventListener("click", () => {
     const shouldLoadExample = regenerateExample;
-    const previousEventName = eventInput.value.trim();
     regenerateExample = false;
     regenerateDialog.close("confirm");
     if (shouldLoadExample) {
-      void loadExample(previousEventName);
+      void loadExample();
     } else {
       void generateDraw();
     }
@@ -1368,7 +1417,7 @@ async function initializeSecret() {
     greeting.textContent = `Bonjour ${assignment.giver} !`;
     const reveal = document.createElement("p");
     reveal.className = "secret-reveal";
-    reveal.append("Pour ce tirage, tu dois faire un cadeau à :");
+    reveal.append("Pour cet évènement, tu dois faire un cadeau à :");
     const recipient = document.createElement("strong");
     recipient.textContent = assignment.recipient;
     reveal.append(recipient);
@@ -1388,4 +1437,20 @@ if (typeof document !== "undefined") {
   } else if (document.body.dataset.page === "secret") {
     initializeSecret();
   }
+}
+
+if (typeof window !== "undefined" && typeof document !== "undefined") {
+  // -- Matomo ---
+  var _paq = window._paq = window._paq || [];
+  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  _paq.push(["trackPageView"]);
+  _paq.push(["enableLinkTracking"]);
+  (function() {
+    var u = "https://analytics.schapira.dev/";
+    _paq.push(["setTrackerUrl", u + "matomo.php"]);
+    _paq.push(["setSiteId", "7"]);
+    var d = document, g = d.createElement("script"), s = d.getElementsByTagName("script")[0];
+    g.async = true; g.src = u + "matomo.js"; s.parentNode.insertBefore(g, s);
+  })();
+  // -- End Matomo Code --
 }

@@ -478,6 +478,17 @@ select:hover {
   cursor: not-allowed;
 }
 
+.button-danger {
+  color: white; /* blanc */
+  background: #7f1d1d; /* rouge foncé */
+  box-shadow: 0 5px 13px rgb(127 29 29 / 16%); /* ombre rouge translucide */
+}
+
+.button-danger:not(:disabled):hover {
+  background: #641616; /* rouge très foncé */
+  box-shadow: 0 8px 18px rgb(127 29 29 / 20%); /* ombre rouge translucide */
+}
+
 .button-secondary {
   flex: 0 0 auto;
   border-color: #dce4d9; /* gris sauge clair */
@@ -485,8 +496,15 @@ select:hover {
   background: #f5f7f1; /* ivoire verdâtre */
 }
 
-.button-secondary:hover {
+.button-secondary:not(:disabled):hover {
   background: #edf2e8; /* vert sauge pâle */
+}
+
+.button-secondary:disabled {
+  border-color: #cbd2c8; /* gris sauge */
+  color: #5b665e; /* gris sauge foncé */
+  background: #e8ebe4; /* gris sauge très clair */
+  cursor: not-allowed;
 }
 
 .card-footer {

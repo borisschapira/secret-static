@@ -6,11 +6,12 @@
     <meta name="referrer" content="no-referrer">
     <meta name="theme-color" content="#183d32">
     <title>Secret — Organiser un tirage</title>
-    <link rel="stylesheet" href="styles.css">
-    <script type="module" src="app.js"></script>
+    <link rel="stylesheet" href="styles.css?v=1.4.0">
+    <script type="module" src="app.js?v=1.4.0"></script>
   </head>
   <body data-page="organizer">
-    <a class="skip-link" href="#main">Aller au contenu</a>
+    <a id="skip-link-main" class="skip-link" href="#main">Aller au contenu</a>
+    <a id="results-skip-link" class="skip-link" href="#results" hidden>Aller aux liens générés</a>
     <header class="site-header">
       <a class="brand" href="index.html" aria-label="Secret, accueil">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="icons.svg#gift"/></svg></span>
@@ -77,7 +78,7 @@
         </div>
       </section>
 
-      <section id="results" class="results-card" aria-labelledby="results-heading" hidden>
+      <section id="results" class="results-card" aria-labelledby="results-heading" tabindex="-1" hidden>
         <div class="card-heading">
           <div class="step-number step-number--light" aria-hidden="true">02</div>
           <div>
@@ -99,7 +100,7 @@
       </section>
 
       <footer class="page-footer">
-        <span>Version 1.3.0</span>
+        <span>Version 1.4.0</span>
         <a href="https://github.com/borisschapira/secret-static">Contribuer au code ou signaler un bug</a>
         <span>Simple, privé.</span>
       </footer>
@@ -120,10 +121,10 @@
       <div class="dialog-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="icons.svg#broom-sparkles"/></svg></div>
       <p class="eyebrow">Avant de continuer</p>
       <h2 id="clear-form-heading">Nettoyer le formulaire ?</h2>
-      <p id="clear-form-description">Les liens générés seront perdus. Voulez-vous vraiment nettoyer le formulaire ?</p>
+      <p id="clear-form-description">Les données saisies dans le formulaire seront effacées. Voulez-vous vraiment nettoyer le formulaire ?</p>
       <div class="dialog-actions">
         <button id="cancel-clear-form" class="button button-secondary" type="button" autofocus>Annuler</button>
-        <button id="confirm-clear-form" class="button button-primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#broom-sparkles"/></svg> Nettoyer le formulaire</button>
+        <button id="confirm-clear-form" class="button button-primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#broom-sparkles"/></svg> <span id="confirm-clear-form-label">Nettoyer le formulaire</span></button>
       </div>
     </dialog>
 
@@ -134,7 +135,7 @@
       <p id="regenerate-description">Un nouveau tirage va modifier le tirage actuel et remplacer les liens générés. Voulez-vous continuer ?</p>
       <div class="dialog-actions">
         <button id="cancel-regenerate" class="button button-secondary" type="button" autofocus>Annuler</button>
-        <button id="confirm-regenerate" class="button button-primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#gift"/></svg><span id="confirm-regenerate-label">Générer un nouveau tirage</span></button>
+        <button id="confirm-regenerate" class="button button-danger" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="icons.svg#gift"/></svg><span id="confirm-regenerate-label">Générer un nouveau tirage</span></button>
       </div>
     </dialog>
 

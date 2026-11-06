@@ -9,7 +9,11 @@ import {
   encryptAdminState,
   IMPOSSIBLE_DRAW_ERROR,
   isExampleState,
+  isOrganizerFormEmpty,
+  nextExampleIndex,
   renameDraw,
+  shouldDisableClearFormButton,
+  showClearFormConfirmation,
   validateParticipantName,
 } from "../public/app.js";
 
@@ -85,7 +89,7 @@ function validAdminState() {
   };
 }
 
-test("precomputes and recognizes each supported example team", async () => {
+test("builds and recognizes each supported example team without generating links", () => {
   const supportedTeams = [
     ["Exemple — Scooby-Doo", ["Fred", "Daphné", "Véra", "Sammy", "Scooby-Doo"]],
     ["Exemple — Buffy contre les vampires", ["Buffy", "Willow", "Alex", "Giles", "Cordelia"]],
@@ -94,8 +98,7 @@ test("precomputes and recognizes each supported example team", async () => {
     ["Exemple — Le Seigneur des anneaux", ["Frodon", "Sam", "Aragorn", "Legolas", "Gimli", "Gandalf"]],
     ["Exemple — Les Tortues Ninja", ["Leonardo", "Michelangelo", "Donatello", "Raphaël", "Splinter"]],
   ];
-  const baseUrl = new URL("https://example.test/secret.html");
-  const snapshots = await createExampleStates(baseUrl);
+  const snapshots = createExampleStates();
 
   assert.deepEqual(
     snapshots.map(({ eventName, participants: team }) => [
@@ -106,30 +109,109 @@ test("precomputes and recognizes each supported example team", async () => {
   );
 
   for (const state of snapshots) {
-    const { eventName } = state;
     assert.equal(isExampleState(state), true);
     assert.equal(isExampleState({ ...state, eventDraft: "Événement modifié" }), false);
     assert.equal(isExampleState({ ...state, participants: participants.slice(0, 3) }), false);
-    assert.equal(state.generatedLinks.length, state.participants.length);
-    assert.ok(state.generatedLinks.every(({ url }) => new URL(url).origin === baseUrl.origin));
+    assert.equal(state.generatedLinks, null);
+  }
+});
 
-    const assignments = await Promise.all(state.generatedLinks.map(async ({ name, url }) => ({
-      name,
-      ...await decryptAssignment(new URL(url).searchParams.get("token")),
-    })));
-    assert.ok(assignments.every(({ eventName: assignmentEvent }) => assignmentEvent === eventName));
-    assert.deepEqual(
-      new Set(assignments.map(({ giver }) => giver)),
-      new Set(state.participants.map(({ name }) => name)),
+test("chooses a random example once, then rotates through the examples", () => {
+  const values = new Map();
+  const storage = {
+    getItem(key) {
+      return values.get(key) ?? null;
+    },
+    setItem(key, value) {
+      values.set(key, value);
+    },
+  };
+  let randomChoiceCount = 0;
+  const chooseRandom = (length) => {
+    randomChoiceCount += 1;
+    assert.equal(length, 6);
+    return 4;
+  };
+
+  assert.equal(nextExampleIndex(storage, chooseRandom), 4);
+  assert.equal(nextExampleIndex(storage, chooseRandom), 5);
+  assert.equal(nextExampleIndex(storage, chooseRandom), 0);
+  assert.equal(randomChoiceCount, 1);
+});
+
+test("disables the clear-form button only when the organizer form is empty and ready", () => {
+  const emptyForm = {
+    organizerReady: true,
+    participants: [],
+    eventDraft: " \n ",
+    participantDraft: "\t",
+  };
+
+  assert.equal(isOrganizerFormEmpty([], emptyForm.eventDraft, emptyForm.participantDraft), true);
+  assert.equal(shouldDisableClearFormButton(emptyForm), true);
+  assert.equal(shouldDisableClearFormButton({ ...emptyForm, organizerReady: false }), true);
+  assert.equal(shouldDisableClearFormButton({ ...emptyForm, eventDraft: "Échange" }), false);
+  assert.equal(shouldDisableClearFormButton({ ...emptyForm, participantDraft: "Camille" }), false);
+  assert.equal(shouldDisableClearFormButton({ ...emptyForm, participants: [participants[0]] }), false);
+});
+
+test("always opens the clear-form confirmation with a message matching generated-link state", () => {
+  const cases = [
+    [
+      false,
+      "Les données saisies dans le formulaire seront effacées. Voulez-vous vraiment nettoyer le formulaire ?",
+      "Nettoyer le formulaire",
+      "icons.svg#broom-sparkles",
+      "button-primary",
+    ],
+    [
+      true,
+      "Les liens générés seront perdus et les données du formulaire seront effacées. Voulez-vous vraiment continuer ?",
+      "Supprimer mon évènement",
+      "icons.svg#delete",
+      "button-danger",
+    ],
+  ];
+
+  for (const [hasGeneratedLinks, expectedMessage, expectedLabel, expectedIcon, expectedClass] of cases) {
+    const description = { textContent: "" };
+    const classes = new Set(["button-primary"]);
+    const confirmButton = {
+      classList: {
+        toggle(name, force) {
+          if (force) classes.add(name);
+          else classes.delete(name);
+        },
+      },
+    };
+    const confirmLabel = { textContent: "" };
+    const confirmIcon = {
+      setAttribute(name, value) {
+        this[name] = value;
+      },
+    };
+    let showModalCalls = 0;
+    const dialog = {
+      showModal() {
+        showModalCalls += 1;
+      },
+    };
+
+    showClearFormConfirmation(
+      dialog,
+      description,
+      confirmButton,
+      confirmLabel,
+      confirmIcon,
+      hasGeneratedLinks,
     );
-    assert.deepEqual(
-      new Set(assignments.map(({ recipient }) => recipient)),
-      new Set(state.participants.map(({ name }) => name)),
-    );
-    const recipientsByGiver = new Map(assignments.map(({ giver, recipient }) => [giver, recipient]));
-    assert.ok(assignments.every(({ giver, recipient }) => (
-      giver !== recipient && recipientsByGiver.get(recipient) !== giver
-    )));
+
+    assert.equal(description.textContent, expectedMessage);
+    assert.equal(confirmLabel.textContent, expectedLabel);
+    assert.equal(confirmIcon.href, expectedIcon);
+    assert.equal(classes.has(expectedClass), true);
+    assert.equal(classes.has(expectedClass === "button-primary" ? "button-danger" : "button-primary"), false);
+    assert.equal(showModalCalls, 1);
   }
 });
 
