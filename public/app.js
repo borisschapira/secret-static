@@ -1402,7 +1402,12 @@ async function initializeOrganizer() {
 // Déchiffre le lien reçu par un participant et révèle son attribution.
 async function initializeSecret() {
   const eventTitle = document.querySelector("#secret-event");
+  const backEventTitle = document.querySelector("#secret-event-back");
   const content = document.querySelector("#secret-content");
+  const assignmentContent = document.querySelector("#secret-assignment");
+  const card = document.querySelector("#secret-card");
+  const frontFace = document.querySelector("#secret-card-front");
+  const backFace = document.querySelector("#secret-card-back");
   const errorMessage = document.querySelector("#secret-error");
   const eyebrow = document.querySelector("#secret-eyebrow");
   const token = new URLSearchParams(window.location.search).get("token");
@@ -1411,17 +1416,47 @@ async function initializeSecret() {
     if (!token) throw new Error("Jeton absent.");
     const assignment = await decryptAssignment(token);
     eventTitle.textContent = assignment.eventName;
+    backEventTitle.textContent = assignment.eventName;
 
     const greeting = document.createElement("p");
     greeting.className = "secret-greeting";
-    greeting.textContent = `Bonjour ${assignment.giver} !`;
-    const reveal = document.createElement("p");
-    reveal.className = "secret-reveal";
-    reveal.append("Pour cet évènement, tu dois faire un cadeau à :");
-    const recipient = document.createElement("strong");
-    recipient.textContent = assignment.recipient;
-    reveal.append(recipient);
-    content.replaceChildren(greeting, reveal);
+    greeting.textContent = `Bonjour ${assignment.giver} !`;
+    const revealButton = document.createElement("button");
+    revealButton.className = "button button-primary secret-reveal-button";
+    revealButton.type = "button";
+    revealButton.setAttribute("aria-controls", "secret-assignment");
+
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    icon.setAttribute("focusable", "false");
+    const iconReference = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    iconReference.setAttribute("href", "icons.svg#wand-sparkles");
+    icon.append(iconReference);
+    revealButton.append(icon);
+
+    const revealButtonLabel = document.createElement("span");
+    revealButtonLabel.textContent = "Découvrir à qui offrir un cadeau";
+    revealButton.append(revealButtonLabel);
+
+    revealButton.addEventListener("click", () => {
+      const reveal = document.createElement("p");
+      reveal.className = "secret-reveal";
+      reveal.tabIndex = -1;
+      reveal.append(document.createTextNode(assignment.giver));
+      reveal.append(", tu dois faire un cadeau à :");
+      const recipient = document.createElement("strong");
+      recipient.textContent = assignment.recipient;
+      reveal.append(recipient);
+      assignmentContent.replaceChildren(reveal);
+      card.classList.add("is-revealed");
+      frontFace.setAttribute("aria-hidden", "true");
+      frontFace.inert = true;
+      backFace.removeAttribute("aria-hidden");
+      reveal.focus();
+    });
+
+    content.prepend(greeting, revealButton);
   } catch (error) {
     console.warn("Le lien de tirage fourni est invalide.", error);
     eventTitle.textContent = "Une surprise est introuvable";

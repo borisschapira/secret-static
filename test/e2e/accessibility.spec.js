@@ -73,16 +73,48 @@ test("announces generated links through the polite status region", async ({ page
   await expect(page.getByRole("button", { name: "Lien pour Camille copié" })).toBeVisible();
 });
 
-test("shows the event and assignment without exposing draw terminology to participants", async ({ page }) => {
+test("flips the playing-card-shaped card to reveal the recipient", async ({ page }) => {
   const token = await encryptAssignment("Test", "Boris", "Hélène");
   await page.goto(`/secret.html?token=${encodeURIComponent(token)}`);
 
   await expect(page.locator("#secret-eyebrow")).toHaveText("Votre évènement");
   await expect(page.locator("#secret-event")).toHaveText("Test");
+  await expect(page.locator("#secret-event-back")).toHaveText("Test");
+  for (const face of ["#secret-card-front", "#secret-card-back"]) {
+    const cornerMarks = page.locator(`${face} .secret-corner-marks`);
+    await expect(cornerMarks).toHaveAttribute("aria-hidden", "true");
+    await expect(cornerMarks.locator("svg")).toHaveCount(4);
+    await expect(cornerMarks.locator('use[href="icons.svg#gift"]')).toHaveCount(4);
+  }
   await expect(page.locator(".secret-greeting")).toHaveText("Bonjour Boris !");
+  const card = page.locator("#secret-card");
+  const dimensions = await card.boundingBox();
+  expect(dimensions.width / dimensions.height).toBeCloseTo(0.63, 2);
+
+  const revealButton = page.getByRole("button", { name: "Découvrir à qui offrir un cadeau" });
+  await expect(revealButton.locator("svg use")).toHaveAttribute("href", "icons.svg#wand-sparkles");
+  await expect(card).not.toContainText("Hélène");
+  await expect(card.locator("#secret-assignment")).toBeEmpty();
+  await expect(page.getByRole("link", { name: "← Retour à l’accueil" })).toBeVisible();
+  await expect(page.locator(".secret-footer")).toContainText("Version 1.5.0");
+
+  const cardInner = page.locator("#secret-card-inner");
+  await expect(cardInner).toHaveCSS("transition-duration", "0.7s");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect.poll(async () => Number.parseFloat(await cardInner.evaluate(
+    (element) => getComputedStyle(element).transitionDuration,
+  ))).toBeLessThan(0.001);
+  await revealButton.focus();
+  await page.keyboard.press("Enter");
   await expect(page.locator(".secret-reveal")).toContainText(
-    "Pour cet évènement, tu dois faire un cadeau à",
+    "Boris, tu dois faire un cadeau à",
   );
   await expect(page.locator(".secret-reveal strong")).toHaveText("Hélène");
-  await expect(page.locator("#secret-card")).not.toContainText("tirage");
+  await expect(page.locator(".secret-reveal")).toBeFocused();
+  await expect(card).toHaveClass(/is-revealed/u);
+  await expect(page.locator("#secret-card-front")).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator("#secret-card-front")).toHaveAttribute("inert", "");
+  await expect(page.locator("#secret-card-back")).not.toHaveAttribute("aria-hidden", "true");
+  await expect(page.getByRole("button", { name: "Découvrir à qui offrir un cadeau" })).toHaveCount(0);
+  await expect(card).not.toContainText("tirage");
 });

@@ -749,26 +749,80 @@ select:hover {
 
 .secret-card {
   position: relative;
-  width: min(100%, 660px);
+  width: min(100%, 24rem);
+  aspect-ratio: 0.63;
+  perspective: 1000px;
+}
+
+.secret-card-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.secret-card.is-revealed .secret-card-inner {
+  transform: rotateY(180deg);
+}
+
+.secret-card-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
   overflow: hidden;
-  padding: clamp(2rem, 7vw, 4.4rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.5rem, 7vw, 3rem);
   border: 1px solid rgb(32 52 44 / 7%); /* vert encre très translucide */
   border-radius: 1.2rem;
   background: var(--paper); /* blanc cassé */
   box-shadow: var(--shadow); /* ombre vert forêt */
+  backface-visibility: hidden;
   text-align: center;
+  -webkit-backface-visibility: hidden;
 }
 
-.secret-decoration {
+.secret-card-back {
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .secret-card-inner {
+    transition: transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+}
+
+.secret-corner-marks {
   position: absolute;
-  top: 1rem;
-  right: 1.5rem;
+  inset: 1.25rem;
   color: #e8dfca; /* beige sable */
+  pointer-events: none;
 }
 
-.secret-decoration svg {
-  width: 2rem;
-  height: 2rem;
+.secret-corner-marks svg {
+  position: absolute;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.secret-corner-marks svg:nth-child(1) {
+  top: 0;
+  left: 0;
+}
+
+.secret-corner-marks svg:nth-child(2) {
+  top: 0;
+  right: 0;
+}
+
+.secret-corner-marks svg:nth-child(3) {
+  right: 0;
+  bottom: 0;
+}
+
+.secret-corner-marks svg:nth-child(4) {
+  bottom: 0;
+  left: 0;
 }
 
 .secret-card .eyebrow {
@@ -807,6 +861,10 @@ select:hover {
   font-size: 1.05rem;
 }
 
+.secret-reveal-button {
+  margin-top: 0.6rem;
+}
+
 .secret-reveal {
   margin: 0;
   color: #40564a; /* vert sauge sombre */
@@ -821,6 +879,12 @@ select:hover {
   color: var(--forest); /* vert forêt */
   font-size: clamp(1.9rem, 6vw, 2.8rem);
   font-weight: 400;
+}
+
+.secret-reveal strong:focus {
+  border-radius: 0.2rem;
+  outline: 3px solid #d5aa68; /* or doux */
+  outline-offset: 6px;
 }
 
 .secret-error {
@@ -849,6 +913,19 @@ select:hover {
 .secret-footer {
   margin: 1.5rem 0 0;
   color: var(--muted); /* gris sauge */
+}
+
+.secret-footer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1rem;
+  margin-top: 0.75rem;
+}
+
+.secret-footer .back-link {
+  margin-top: 0;
 }
 
 .secret-footer-message > span {
