@@ -763,7 +763,9 @@ async function initializeOrganizer() {
   }
 
   function setCopyButtonState(button, copied) {
-    button.querySelector(".copy-button-label").textContent = copied ? "Lien copié" : button.dataset.copyLabel;
+    button.querySelector(".copy-button-label").textContent = copied
+      ? "Lien copié, à vous de l’envoyer"
+      : button.dataset.copyLabel;
     const accessibleLabel = copied
       ? button.dataset.accessibleCopiedLabel
       : button.dataset.accessibleCopyLabel;

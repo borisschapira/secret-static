@@ -96,7 +96,7 @@ test("flips the playing-card-shaped card to reveal the recipient", async ({ page
   await expect(card).not.toContainText("Hélène");
   await expect(card.locator("#secret-assignment")).toBeEmpty();
   await expect(page.getByRole("link", { name: "← Retour à l’accueil" })).toBeVisible();
-  await expect(page.locator(".secret-footer")).toContainText("Version 1.5.0");
+  await expect(page.locator(".secret-footer")).toContainText("Version 1.5.1");
 
   const cardInner = page.locator("#secret-card-inner");
   await expect(cardInner).toHaveCSS("transition-duration", "0.7s");
